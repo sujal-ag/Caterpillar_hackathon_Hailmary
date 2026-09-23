@@ -23,7 +23,7 @@ SWITCH_NAMES = (
 
 
 class Debouncer:
-    """One instance per machine. `state[name] = (accepted_value, accepted_at)`."""
+    """One instance per machine. `state[name] = (accepted_value, accepted_at, last_attempt_at)`."""
 
     def __init__(self, window_ms: int = DEBOUNCE_MS):
         self._window = timedelta(milliseconds=window_ms)

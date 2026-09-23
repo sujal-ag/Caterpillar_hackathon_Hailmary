@@ -75,6 +75,24 @@ def test_every_spn_maps_and_missing_key_is_unknown():
         assert empty[field] is None, field  # I1: missing -> UNKNOWN, not defaulted
 
 
+def test_normalise_detects_travelling_from_can_not_sens():
+    # Regression: travel_speed_kmh is a `can` (SPN 84) field, not a `sens` field (per
+    # raw.v1's schema). A wheel loader driving with hydraulics at standby must still
+    # classify as TRAVELLING, not IDLE.
+    sens = {
+        "engine_state": "RUNNING",
+        "swing_rate_deg_s": 0.0,
+        "hyd_pump_press_kpa": 1000,
+        "joystick_active": False,
+    }
+    row = normalise.normalise(frame(machine_id="WL001", can={"84": 5.0}, sens=sens))
+    assert row["travel_speed_kmh"] == 5.0
+    assert row["machine_activity"] == "TRAVELLING"
+
+    row_stopped = normalise.normalise(frame(machine_id="WL001", can={"84": 0.0}, sens=sens))
+    assert row_stopped["machine_activity"] == "IDLE"  # 0.0 must not be treated as unknown
+
+
 def test_normalise_derives_grounded_and_activity():
     sens = {
         "engine_state": "RUNNING",
@@ -416,6 +434,46 @@ def test_rollup_fuel_per_load_null_below_three_loads_the_197_artefact_guard():
     _, hour = acc.close(to_site_iso(start + timedelta(hours=1)))
     assert hour["load_cycles"] == 2
     assert hour["fuel_per_load"] is None  # loads < 3 (§6.13 guard)
+
+
+def test_rollup_payload_t_survives_load_count_and_payload_reset_on_the_same_tick():
+    # Regression: the real simulator increments load_count on the exact same tick it
+    # resets payload_kg to 0 for the next cycle (fake_machine.py's DIGGING phase). Reading
+    # only "this sample's" payload_kg at the increment silently loses the load's weight.
+    acc = rollup.RollupAccumulator("EXC001")
+    start = datetime(2026, 1, 1, 6, 0, 0, tzinfo=IST)
+    samples = [
+        {"ts": to_site_iso(start), "machine_activity": "WORKING", "payload_kg": 0, "load_count": 0},
+        {
+            "ts": to_site_iso(start + timedelta(seconds=1)),
+            "machine_activity": "WORKING",
+            "payload_kg": 2000,
+            "load_count": 0,
+        },  # payload peaks mid-cycle
+        {
+            "ts": to_site_iso(start + timedelta(seconds=2)),
+            "machine_activity": "WORKING",
+            "payload_kg": 0,
+            "load_count": 1,
+        },  # counter ticks over on the same sample payload resets
+    ]
+    for s in samples:
+        acc.add_sample(s)
+    _, hour = acc.close(to_site_iso(start + timedelta(hours=1)))
+    assert hour["payload_t"] == pytest.approx(2.0)  # 2000 kg, not 0
+
+
+def test_rollup_payload_t_against_real_replay_fixture():
+    lines = [json.loads(s) for s in (FIXTURES / "replay_10min.jsonl").read_text().splitlines()]
+    raw = [ln["payload"] for ln in lines if ln["topic"].endswith("/raw")]
+    acc = rollup.RollupAccumulator("EXC001")
+    for r in raw:
+        row = normalise.normalise(r)
+        row["operator_id"] = "OP1001"
+        acc.add_sample(row)
+    _, hour = acc.close(raw[-1]["ts"])
+    assert hour["load_cycles"] == 3
+    assert hour["payload_t"] == pytest.approx(6.0)  # 3 loads x 2000 kg (fake_machine.py)
 
 
 def test_rollup_fuel_per_load_populated_at_three_or_more_loads():

@@ -42,7 +42,7 @@ def validate_raw(frame: dict) -> list[str]:
     return errors
 
 
-def _activity(sens: dict) -> str | None:
+def _activity(sens: dict, travel_speed_kmh: float | None) -> str | None:
     engine_state = sens.get("engine_state")
     if engine_state is None:
         return None
@@ -50,8 +50,7 @@ def _activity(sens: dict) -> str | None:
         return "OFF"
     if sens.get("lift_mode"):
         return "LIFTING"
-    travel = sens.get("travel_speed_kmh") or sens.get("travel_kmh")
-    if travel is not None and travel > _TRAVEL_ACTIVE_KMH:
+    if travel_speed_kmh is not None and travel_speed_kmh > _TRAVEL_ACTIVE_KMH:
         return "TRAVELLING"
     swing = sens.get("swing_rate_deg_s")
     hyd = sens.get("hyd_pump_press_kpa")
@@ -108,7 +107,7 @@ def normalise(frame: dict) -> dict:
         "payload_kg": sens.get("payload_kg"),
         "pass_count": sens.get("pass_count"),
         "load_count": sens.get("load_count"),
-        "machine_activity": _activity(sens),
+        "machine_activity": _activity(sens, by_field["travel_speed_kmh"]),
         "pitch_deg": sens.get("pitch_deg"),
         "roll_deg": sens.get("roll_deg"),
         "x_m": sens.get("x_m"),

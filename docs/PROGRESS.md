@@ -43,6 +43,38 @@ One entry per phase (plan.md §0 rule 3): what was built, gate results, deviatio
 - Wiring these modules to a live MQTT feed is Phase 4 (`bus.py`, `main.py`).
 - Organizer anchor reproduction (D14) waits on P1's `data/history/` export.
 
+### Post-review fixes (2026-09-23, same day — requested check of Phase 2)
+Re-read every module against the plan and ran `normalise`/`rollup` over the real
+`replay_10min.jsonl` fixture end-to-end (not just synthetic unit inputs). Found two real
+bugs neither the gate tests nor my own synthetic tests had caught:
+1. **`normalise._activity` read `travel_speed_kmh` from the wrong dict.** `raw.v1` puts it
+   under `can` (SPN 84), but `_activity` only looked in `sens`. Every wheel-loader travel
+   segment silently classified as IDLE (or WORKING, if swing/hyd happened to be nonzero)
+   instead of TRAVELLING — this would have corrupted the fuel/productive split for every
+   950GC LOAD_CARRY task once rollup consumed it. Fixed: `_activity` now takes the
+   correctly-sourced value directly instead of guessing which dict holds it.
+2. **`rollup.py`'s `payload_t` read this sample's `payload_kg` at the moment `load_count`
+   increments**, but the real simulator's cycle resets `payload_kg` to 0 on the exact same
+   tick it increments `load_count` for the next cycle — confirmed against the real fixture,
+   which computed `payload_t: 0.0` despite 3 real completed loads. Fixed with a
+   watermark (max `payload_kg` seen since the last increment); same fixture now gives
+   `payload_t: 6.0` (3 × 2000 kg, matching `fake_machine.py`'s per-load weight).
+3. Also fixed a stale docstring on `Debouncer` (still described the old 2-tuple state
+   shape from before the leading-edge-refresh fix) and a `0.0`-is-falsy landmine in the old
+   `sens.get(x) or sens.get(y)` fallback pattern the `_activity` fix also removed.
+
+Added regression tests for both (`test_normalise_detects_travelling_from_can_not_sens`,
+`test_rollup_payload_t_survives_load_count_and_payload_reset_on_the_same_tick`, and a
+fixture-level check for each). Full suite: 99 passed. Not committed — left for the user.
+
+### Known-but-not-fixed: per-machine tracker scoping isn't type-enforced
+`Debouncer`, `IdleTracker` and `DtcTracker` are documented "one instance per machine" but
+don't enforce it internally (unlike `StaleTracker`, which is explicitly multi-machine,
+keyed by `machine_id`). If Phase 4's wiring code accidentally shares one instance across
+machines, DTCs/idle episodes/switch state from different machines with the same key would
+collide. Not a bug today (nothing in Phase 2 wires multiple machines together), but worth
+a look when Phase 4 actually instantiates these per-machine.
+
 ---
 
 ## Phase 1 — Storage layer ✅ (2026-09-23)

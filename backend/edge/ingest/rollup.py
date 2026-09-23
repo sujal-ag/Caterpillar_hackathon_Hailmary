@@ -64,7 +64,7 @@ class _HourAccum:
         self.idle_medium_count = 0
         self.idle_long_count = 0
         self.payload_kg_sum = 0.0
-        self.last_load_count = None
+        self.payload_since_load_max = 0.0
 
 
 class RollupAccumulator:
@@ -181,8 +181,16 @@ class RollupAccumulator:
             h.seatbelt_status = seatbelt
         if sample.get("engine_hours") is not None:
             h.engine_hours = sample["engine_hours"]
-        if load_delta and sample.get("payload_kg") is not None:
-            h.payload_kg_sum += sample["payload_kg"]
+        payload_kg = sample.get("payload_kg")
+        if payload_kg is not None:
+            h.payload_since_load_max = max(h.payload_since_load_max, payload_kg)
+        if load_delta:
+            # Watermark since the last increment, not this sample's own payload_kg: the
+            # counter and the payload reading don't necessarily land on the same tick
+            # (e.g. load_count ticks over right as the next cycle's payload resets to 0),
+            # so reading only "this sample" silently loses the load's real weight.
+            h.payload_kg_sum += h.payload_since_load_max * load_delta
+            h.payload_since_load_max = 0.0
 
         if active:
             m.active_s += dt
