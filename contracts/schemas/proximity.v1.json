@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "proximity.v1",
+  "title": "ProximityV1",
+  "description": "Nearest person. cv -> engine on cat/{site}/{machine}/cv/proximity (5 Hz), sim fallback on .../sim/proximity. min_dist_m null + frame_ok true = no person; frame_ok false = UNKNOWN, never 'no person'.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "ts",
+    "machine_id",
+    "min_dist_m",
+    "frame_ok",
+    "source"
+  ],
+  "properties": {
+    "schema": {
+      "const": "proximity.v1"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "machine_id": {
+      "type": "string"
+    },
+    "min_dist_m": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "sector": {
+      "enum": [
+        "REAR",
+        "LEFT",
+        "RIGHT",
+        "FRONT",
+        null
+      ]
+    },
+    "conf": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "frame_ok": {
+      "type": "boolean"
+    },
+    "source": {
+      "enum": [
+        "cv",
+        "sim"
+      ]
+    }
+  }
+}

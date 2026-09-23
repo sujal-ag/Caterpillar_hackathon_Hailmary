@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sync_pull.v1",
+  "title": "SyncPullV1",
+  "description": "GET /sync/pull?stream=&cursor=&site_id= response.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stream",
+    "items",
+    "next_cursor"
+  ],
+  "properties": {
+    "stream": {
+      "enum": [
+        "hazards",
+        "tasks",
+        "lessons",
+        "roster",
+        "models",
+        "forecast"
+      ]
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "title": "PullItem",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cursor",
+          "entity_id",
+          "op",
+          "payload"
+        ],
+        "properties": {
+          "cursor": {
+            "type": "integer"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "UPSERT",
+              "DELETE"
+            ]
+          },
+          "payload": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "next_cursor": {
+      "type": "integer"
+    }
+  }
+}

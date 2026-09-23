@@ -1,0 +1,13 @@
+# Used by edge-api, cloud-api (Phase 0 only /health) and the replay "simulator" placeholder.
+# ponytail: one image until cloud deps diverge (psycopg, Phase 9) -> split into Dockerfile.cloud then.
+FROM python:3.11-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/backend
+WORKDIR /app/backend
+COPY backend/requirements.lock .
+RUN pip install --no-cache-dir -r requirements.lock
+COPY contracts/ /app/contracts/
+COPY backend/ .
+EXPOSE 8000
+HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"
+CMD ["uvicorn", "edge.main:app", "--host", "0.0.0.0", "--port", "8000"]

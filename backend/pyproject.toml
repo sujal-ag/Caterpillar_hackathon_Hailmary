@@ -1,0 +1,38 @@
+[project]
+name = "operator-companion-backend"
+version = "0.0.0"
+requires-python = ">=3.11,<3.12"
+# Deps are added per phase, when first imported. Exact pins live in requirements.lock.
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "paho-mqtt>=2",
+    "pyyaml",
+    "tzdata",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "httpx",
+    "jsonschema",
+    "ruff",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["common*", "edge*", "cloud*", "tools*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

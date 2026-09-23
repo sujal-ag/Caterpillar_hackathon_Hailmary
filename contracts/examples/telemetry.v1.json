@@ -1,0 +1,17 @@
+{
+  "schema": "telemetry.v1",
+  "ts": "2026-10-14T10:42:17.000+05:30",
+  "machine_id": "EXC001", "operator_id": "OP1001", "shift_id": "SH-20261014-EXC001-D",
+  "engine": { "state": "RUNNING", "rpm": 1010, "load_pct": 12, "fuel_rate_lph": 2.1,
+              "fuel_used_total_l": 15240.6, "fuel_level_pct": 58.4, "def_level_pct": 71.0,
+              "hours": 1524.62, "idle_hours_total": 581.3, "coolant_c": 86, "oil_press_kpa": 290 },
+  "hyd": { "pump_press_kpa": 3100, "oil_temp_c": 62, "lockout": "UNLOCKED" },
+  "implement": { "boom_deg": 38.5, "stick_deg": -62.0, "bucket_deg": -15.0, "bucket_height_m": 2.1,
+                 "grounded": false, "payload_kg": 0, "attachment_id": "ATT-GP-119", "coupler": "LOCKED" },
+  "motion": { "activity": "IDLE", "travel_kmh": 0.0, "swing_deg_s": 0.0, "pitch_deg": 3.2, "roll_deg": 1.1 },
+  "cab": { "seatbelt": "UNFASTENED", "seat_occupied": true, "door_open": false, "cab_temp_c": 27.5, "ac_on": true },
+  "pos": { "x_m": 184.2, "y_m": 92.7, "heading_deg": 211 },
+  "counters": { "pass_count": 1843, "load_count": 212 },
+  "proximity": { "min_dist_m": null, "sector": null },
+  "quality": 0
+}

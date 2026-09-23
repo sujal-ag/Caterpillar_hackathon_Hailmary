@@ -1,0 +1,12 @@
+{
+  "schema": "incident.v1",
+  "incident_id": "0192f1b0-02c4-7e19-a3f6-9b7d5e0c1a22",
+  "type": "NEAR_MISS", "category": "PERSON_PROXIMITY",
+  "ts": "2026-10-14T11:05:48+05:30", "x_m": 176.0, "y_m": 88.5,
+  "machine_id": "EXC001", "operator_id": "OP1001", "reporter_id": "OP1001",
+  "severity_self": 2, "voice_note_path": "media/0192f1b0.opus", "photo_paths": [],
+  "state_snapshot": { "activity": "SWING_EMPTY", "swing_deg_s": 28, "proximity_min_dist_m": 3.1, "sector": "REAR" },
+  "linked_alert_ids": ["0192f1af-ffd0-7a02-8c11-2b4e6d8f9a10"],
+  "hazard_pin_id": "0192f1b0-0a11-7d42-b0c3-6e1f2a3b4c5d",
+  "status": "OPEN"
+}

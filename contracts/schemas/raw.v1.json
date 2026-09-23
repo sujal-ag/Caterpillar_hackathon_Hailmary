@@ -1,0 +1,360 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "raw.v1",
+  "title": "RawV1",
+  "description": "Machine frame, sim -> ingest on cat/{site}/{machine}/raw at 1 Hz + on switch change (plan §5.2). Any absent or null signal = UNKNOWN (I1). sim_label is eval-only (I9).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "ts",
+    "site_id",
+    "machine_id"
+  ],
+  "properties": {
+    "schema": {
+      "const": "raw.v1"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "site_id": {
+      "type": "string"
+    },
+    "machine_id": {
+      "type": "string"
+    },
+    "can": {
+      "title": "RawCan",
+      "description": "J1939 values keyed by SPN.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "190": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "engine_rpm (rpm)"
+        },
+        "92": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "engine_load_pct (%)"
+        },
+        "183": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "fuel_rate_lph (L/h)"
+        },
+        "250": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "fuel_used_total_l (L, monotonic)"
+        },
+        "96": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "fuel_level_pct (%)"
+        },
+        "1761": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "def_level_pct (%)"
+        },
+        "247": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "engine_hours (h, monotonic)"
+        },
+        "110": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "coolant_temp_c (°C)"
+        },
+        "100": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "engine_oil_press_kpa (kPa)"
+        },
+        "1638": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "hyd_oil_temp_c (°C)"
+        },
+        "168": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "battery_v (V)"
+        },
+        "84": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "travel_speed_kmh (km/h)"
+        },
+        "1856": {
+          "enum": [
+            "FASTENED",
+            "UNFASTENED",
+            "FAULT",
+            null
+          ],
+          "description": "seatbelt"
+        },
+        "70": {
+          "enum": [
+            "ON",
+            "OFF",
+            null
+          ],
+          "description": "parking_brake"
+        },
+        "523": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "transmission_gear (950 GC)"
+        }
+      }
+    },
+    "sens": {
+      "title": "RawSens",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "engine_state": {
+          "enum": [
+            "OFF",
+            "CRANKING",
+            "RUNNING",
+            null
+          ]
+        },
+        "hyd_pump_press_kpa": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "swing_rate_deg_s": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "boom_angle_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "stick_angle_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "bucket_angle_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "bucket_height_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "From Grade/implement system (D12)."
+        },
+        "boom_tip_height_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "From Grade/implement system (D12)."
+        },
+        "payload_kg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "pass_count": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "load_count": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "idle_hours_total": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "pitch_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "roll_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "x_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Local ENU metres."
+        },
+        "y_m": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "heading_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "seat_occupied": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "door_open": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "hyd_lockout": {
+          "enum": [
+            "LOCKED",
+            "UNLOCKED",
+            null
+          ]
+        },
+        "joystick_active": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "lift_mode": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "power_mode": {
+          "enum": [
+            "ECO",
+            "POWER",
+            "SMART",
+            null
+          ]
+        },
+        "attachment_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "coupler_lock": {
+          "enum": [
+            "LOCKED",
+            "UNLOCKED",
+            "UNKNOWN",
+            null
+          ]
+        },
+        "cab_temp_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "cab_ac_on": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "articulation_deg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "950 GC only."
+        },
+        "activity_hint": {
+          "enum": [
+            "OFF",
+            "IDLE",
+            "DIGGING",
+            "SWING_LOADED",
+            "DUMPING",
+            "SWING_EMPTY",
+            "TRAVELLING",
+            "LIFTING",
+            null
+          ],
+          "description": "Optional fine phase; display only."
+        }
+      }
+    },
+    "sim_label": {
+      "enum": [
+        "UNSAFE_EXIT",
+        "BELT_BYPASS",
+        "LONG_IDLE_UNBELTED",
+        "HIGH_IDLE_RPM",
+        "FUEL_INEFFICIENCY",
+        "OVERHEAT_TREND",
+        "TILT_EXCURSION",
+        "PROXIMITY_INTRUSION",
+        "DTC",
+        null
+      ]
+    }
+  }
+}

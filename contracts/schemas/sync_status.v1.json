@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sync_status.v1",
+  "title": "SyncStatusV1",
+  "description": "Sync status on cat/{site}/{machine}/sync/status every 10 s + on change; WS type 'sync'.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "ts",
+    "online",
+    "forced_offline",
+    "queue_depth",
+    "last_success_at"
+  ],
+  "properties": {
+    "schema": {
+      "const": "sync_status.v1"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "online": {
+      "type": "boolean"
+    },
+    "forced_offline": {
+      "type": "boolean",
+      "description": "Demo kill switch (D16); UI shows 'Forced offline (demo)'."
+    },
+    "queue_depth": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "last_success_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    }
+  }
+}

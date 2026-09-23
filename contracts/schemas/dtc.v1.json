@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dtc.v1",
+  "title": "DtcV1",
+  "description": "Diagnostic trouble code change, sim -> ingest on cat/{site}/{machine}/dtc (HLD §8.1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "ts",
+    "site_id",
+    "machine_id",
+    "spn",
+    "fmi",
+    "active"
+  ],
+  "properties": {
+    "schema": {
+      "const": "dtc.v1"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "site_id": {
+      "type": "string"
+    },
+    "machine_id": {
+      "type": "string"
+    },
+    "spn": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "fmi": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 31
+    },
+    "oc": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "J1939 DM1 occurrence count."
+    },
+    "cat_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "CAT event code, e.g. E361, when the machine reports one."
+    },
+    "active": {
+      "type": "boolean"
+    },
+    "freeze_frame": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

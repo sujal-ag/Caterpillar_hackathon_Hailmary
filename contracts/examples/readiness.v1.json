@@ -1,0 +1,7 @@
+{ "schema": "readiness.v1", "check_id": "0192f0c0-1111-7222-8333-444455556666",
+  "operator_id": "OP1001", "shift_id": "SH-20261014-EXC001-D", "ts": "2026-10-14T06:52:10.000+05:30",
+  "sleep_last_24h_h": 5, "sleep_last_48h_h": 11, "feel_score": 3,
+  "rt_mean_ms": 312, "rt_sd_ms": 41, "rt_lapses": 0, "rt_delta_vs_baseline_pct": 4.0,
+  "baseline_source": "PERSONAL", "camera_used": false, "long_blinks_20s": null,
+  "heat_level": "NONE", "score": 70, "rating": "YELLOW",
+  "reasons": ["Sleep: under 12 h in the last 48 h (-30)"], "supervisor_override": null }

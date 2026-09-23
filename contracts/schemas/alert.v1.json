@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "alert.v1",
+  "title": "AlertV1",
+  "description": "Alert lifecycle message on cat/{site}/{machine}/alert and WS type 'alert' (plan §5.4). `alert` is the safety_alert record (HLD §6.11 + D10).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "ts",
+    "action",
+    "alert"
+  ],
+  "properties": {
+    "schema": {
+      "const": "alert.v1"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "action": {
+      "enum": [
+        "RAISED",
+        "UPDATED",
+        "CLEARED",
+        "ACKED"
+      ]
+    },
+    "alert": {
+      "title": "SafetyAlert",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alert_id",
+        "ts",
+        "machine_id",
+        "operator_id",
+        "rule_id",
+        "level",
+        "subject",
+        "state_snapshot",
+        "message_key",
+        "slots",
+        "channels",
+        "acknowledged_at",
+        "ack_by",
+        "suppressed",
+        "suppress_reason",
+        "escalated",
+        "active",
+        "cleared_at"
+      ],
+      "properties": {
+        "alert_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "ts": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "machine_id": {
+          "type": "string"
+        },
+        "operator_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "shift_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rule_id": {
+          "type": "string",
+          "pattern": "^R\\d{2}$"
+        },
+        "level": {
+          "enum": [
+            "INFO",
+            "CAUTION",
+            "WARNING",
+            "CRITICAL"
+          ]
+        },
+        "subject": {
+          "enum": [
+            "SEATBELT",
+            "EXIT",
+            "TILT",
+            "PROXIMITY",
+            "GEOFENCE",
+            "POWERLINE",
+            "DTC",
+            "TEMP",
+            "FATIGUE",
+            "READINESS",
+            "HEAT",
+            "COUPLER",
+            "ANOMALY",
+            "EFFICIENCY",
+            "IDLE"
+          ]
+        },
+        "state_snapshot": {
+          "type": "object",
+          "description": "Exact inputs + thresholds that fired the rule (for /alerts/{id}/why)."
+        },
+        "message_key": {
+          "type": "string"
+        },
+        "slots": {
+          "type": "object"
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "VISUAL",
+              "AUDIO",
+              "VIBRATION"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "acknowledged_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "ack_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "suppressed": {
+          "type": "boolean"
+        },
+        "suppress_reason": {
+          "enum": [
+            "COOLDOWN",
+            "HIGHER_ACTIVE",
+            null
+          ]
+        },
+        "escalated": {
+          "type": "boolean"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "cleared_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        }
+      }
+    }
+  }
+}

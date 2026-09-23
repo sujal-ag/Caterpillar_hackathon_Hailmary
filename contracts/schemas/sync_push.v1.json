@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sync_push.v1",
+  "title": "SyncPushV1",
+  "description": "POST /sync/push request body, gzip JSON (HLD §8.3, plan Phase 9). Batch <= 500.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "device_id",
+    "batch"
+  ],
+  "properties": {
+    "device_id": {
+      "type": "string"
+    },
+    "batch": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "title": "SyncItem",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "seq",
+          "entity",
+          "entity_id",
+          "op",
+          "priority",
+          "payload"
+        ],
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "entity": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "UPSERT",
+              "DELETE"
+            ]
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "payload": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

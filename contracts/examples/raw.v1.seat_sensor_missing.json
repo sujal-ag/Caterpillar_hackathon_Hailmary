@@ -1,0 +1,6 @@
+{
+  "schema": "raw.v1", "ts": "2026-10-14T10:42:18.000+05:30",
+  "site_id": "SITE-PUN-01", "machine_id": "EXC001",
+  "can":  { "190": 1010, "1856": "UNFASTENED" },
+  "sens": { "engine_state": "RUNNING", "seat_occupied": null, "hyd_lockout": "UNLOCKED" }
+}

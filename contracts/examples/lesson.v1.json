@@ -1,0 +1,12 @@
+{ "schema": "lesson.v1", "version": "2026.10.14-stub",
+  "lessons": [
+    { "lesson_id": "L-SAFE-SHUTDOWN", "title_key": "lesson.safe_shutdown.title", "format": "CARD",
+      "duration_s": 60, "machine_family": "ANY", "trigger_rule_ids": ["R03", "R04", "R08"],
+      "tags": ["exit", "shutdown"], "content_json": {"cards": ["lesson.safe_shutdown.card1"]},
+      "media_path": null, "language": "en", "version": 1, "generic_for_subject": "EXIT" } ],
+  "replay_templates": {
+    "R03": { "prompt": "Bucket at {bucket_height_m} m, hydraulics {hyd_lockout}, engine running. You need to leave the cab. What first?",
+             "options": ["Unbuckle and climb out", "Lower the bucket to the ground", "Open the door", "Call the supervisor"],
+             "correct_option": 1,
+             "explanation": "Failed checks: {failed_checks}. Lower the implement, lock hydraulics, stop the engine, then exit using three points of contact.",
+             "doc_reference": "DEMO corpus — safe shutdown" } } }

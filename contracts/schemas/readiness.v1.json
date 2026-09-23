@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "readiness.v1",
+  "title": "ReadinessV1",
+  "description": "Shift-start readiness check result (HLD §6.12, §7.4). Advisory only, never blocks (I10).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "check_id",
+    "operator_id",
+    "shift_id",
+    "ts",
+    "sleep_last_24h_h",
+    "sleep_last_48h_h",
+    "feel_score",
+    "rt_mean_ms",
+    "rt_lapses",
+    "camera_used",
+    "heat_level",
+    "score",
+    "rating",
+    "reasons"
+  ],
+  "properties": {
+    "schema": {
+      "const": "readiness.v1"
+    },
+    "check_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "operator_id": {
+      "type": "string"
+    },
+    "shift_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "sleep_last_24h_h": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 24
+    },
+    "sleep_last_48h_h": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 48
+    },
+    "feel_score": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "rt_mean_ms": {
+      "type": "number",
+      "minimum": 0
+    },
+    "rt_sd_ms": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "rt_lapses": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rt_delta_vs_baseline_pct": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "baseline_source": {
+      "enum": [
+        "PERSONAL",
+        "POPULATION_DEFAULT"
+      ],
+      "description": "POPULATION_DEFAULT = 'no personal baseline yet'."
+    },
+    "camera_used": {
+      "type": "boolean"
+    },
+    "long_blinks_20s": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "heat_level": {
+      "enum": [
+        "NONE",
+        "CAUTION",
+        "EXTREME_CAUTION",
+        "DANGER"
+      ]
+    },
+    "score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "rating": {
+      "enum": [
+        "GREEN",
+        "YELLOW",
+        "RED"
+      ]
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "supervisor_override": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

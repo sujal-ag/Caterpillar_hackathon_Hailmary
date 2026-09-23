@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task.v1",
+  "title": "TaskV1",
+  "description": "Task with ETA prediction (HLD §6.7, §6.15).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "task_id",
+    "shift_id",
+    "machine_id",
+    "operator_id",
+    "task_type_id",
+    "planned_quantity",
+    "unit",
+    "scheduled_start",
+    "scheduled_end",
+    "status",
+    "priority"
+  ],
+  "properties": {
+    "schema": {
+      "const": "task.v1"
+    },
+    "task_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "shift_id": {
+      "type": "string"
+    },
+    "machine_id": {
+      "type": "string"
+    },
+    "operator_id": {
+      "type": "string"
+    },
+    "task_type_id": {
+      "enum": [
+        "TRUCK_LOAD",
+        "BULK_EXC",
+        "TRENCH",
+        "BACKFILL",
+        "GRADE",
+        "LOAD_CARRY",
+        "LIFT",
+        "CLEANUP"
+      ]
+    },
+    "zone_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "planned_quantity": {
+      "type": "number",
+      "minimum": 0
+    },
+    "unit": {
+      "enum": [
+        "M3",
+        "M",
+        "M2",
+        "LIFTS",
+        "HOURS"
+      ]
+    },
+    "soil_type": {
+      "enum": [
+        "LOAM",
+        "SAND_GRAVEL",
+        "CLAY_DRY",
+        "CLAY_WET",
+        "ROCK_BLASTED",
+        null
+      ]
+    },
+    "material_density_t_m3": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "haul_distance_m": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "trucks_assigned": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "truck_capacity_t": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "depends_on": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "scheduled_start": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "scheduled_end": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "status": {
+      "enum": [
+        "SCHEDULED",
+        "IN_PROGRESS",
+        "PAUSED",
+        "DONE",
+        "BACKLOG"
+      ]
+    },
+    "actual_start": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "actual_end": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "actual_quantity": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "delay_minutes": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "delay_reason": {
+      "enum": [
+        "WEATHER",
+        "WAITING_TRUCKS",
+        "BREAKDOWN",
+        "SAFETY_STOP",
+        "OTHER",
+        null
+      ]
+    },
+    "prediction": {
+      "title": "EtaPrediction",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "p50_min",
+        "p90_min",
+        "eta",
+        "drivers",
+        "model_version"
+      ],
+      "properties": {
+        "p50_min": {
+          "type": "number"
+        },
+        "p90_min": {
+          "type": "number"
+        },
+        "eta": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "drivers": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "title": "EtaDriver",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "feature",
+              "effect_pct"
+            ],
+            "properties": {
+              "feature": {
+                "type": "string"
+              },
+              "effect_pct": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "model_version": {
+          "type": "string",
+          "description": "'generic' for the fallback estimate."
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "e.g. 'Estimate (generic)', 'Estimate (cohort)'."
+        },
+        "operator_rate_source": {
+          "enum": [
+            "OPERATOR",
+            "COHORT",
+            "TASK_TYPE",
+            null
+          ]
+        }
+      }
+    }
+  }
+}

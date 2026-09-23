@@ -1,0 +1,10 @@
+{ "schema": "state.v1", "ts": "2026-10-14T10:42:21.300+05:30", "machine_id": "EXC001",
+  "operator_id": "OP1001", "shift_id": "SH-20261014-EXC001-D",
+  "class": "UNSAFE",
+  "active_rules": [{"rule_id": "R03", "level": "CRITICAL"}],
+  "exit_state": "UNSAFE",
+  "exit_checks": {"ENGINE_RUNNING": "FAIL", "HYD_UNLOCKED": "FAIL", "IMPLEMENT_RAISED": "FAIL",
+                  "MOVING": "PASS", "SLOPE": "PASS"},
+  "readiness": "YELLOW",
+  "sensor_health": {"seat": "OK", "seatbelt": "OK", "position": "OK", "proximity": "UNAVAILABLE", "data": "OK"},
+  "data_stale": false }

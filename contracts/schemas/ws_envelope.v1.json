@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ws_envelope.v1",
+  "title": "WsEnvelopeV1",
+  "description": "Every message on /ws/live and /ws/site (plan §5.4). `data` shape per type is documented in contracts/ws.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "ts",
+    "data"
+  ],
+  "properties": {
+    "type": {
+      "enum": [
+        "snapshot",
+        "state",
+        "telemetry",
+        "alert",
+        "nudge",
+        "event",
+        "hazards",
+        "sync",
+        "lesson",
+        "eta",
+        "health",
+        "ping"
+      ]
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "data": {
+      "type": "object"
+    }
+  }
+}

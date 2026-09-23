@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nudge.v1",
+  "title": "NudgeV1",
+  "description": "Operator message on cat/{site}/{machine}/nudge and WS type 'nudge' (plan §5.4). Exit Guard ticks arrive via state.exit_checks.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "ts",
+    "nudge_id",
+    "alert_id",
+    "machine_id",
+    "rule_id",
+    "level",
+    "display",
+    "message_key",
+    "slots",
+    "audio_clip",
+    "tone_pattern",
+    "channels"
+  ],
+  "properties": {
+    "schema": {
+      "const": "nudge.v1"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "nudge_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "alert_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "machine_id": {
+      "type": "string"
+    },
+    "rule_id": {
+      "type": "string",
+      "pattern": "^R\\d{2}$"
+    },
+    "level": {
+      "enum": [
+        "INFO",
+        "CAUTION",
+        "WARNING",
+        "CRITICAL"
+      ]
+    },
+    "display": {
+      "enum": [
+        "CHIP",
+        "BANNER",
+        "FULLSCREEN"
+      ]
+    },
+    "message_key": {
+      "type": "string",
+      "description": "Key in contracts/i18n/en.json."
+    },
+    "slots": {
+      "type": "object"
+    },
+    "audio_clip": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Id in contracts/audio_clips.yaml; null = no voice clip."
+    },
+    "tone_pattern": {
+      "enum": [
+        "tone_info",
+        "tone_caution",
+        "tone_warning",
+        "tone_critical",
+        null
+      ]
+    },
+    "channels": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "VISUAL",
+          "AUDIO",
+          "VIBRATION"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "checklist": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "ENGINE_RUNNING",
+          "HYD_UNLOCKED",
+          "IMPLEMENT_RAISED",
+          "MOVING",
+          "PARK_BRAKE_OFF",
+          "SLOPE"
+        ]
+      },
+      "description": "Exit Guard only: checks to render, in order."
+    }
+  }
+}

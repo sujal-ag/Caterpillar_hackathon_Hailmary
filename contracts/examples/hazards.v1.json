@@ -1,0 +1,13 @@
+{ "schema": "hazards.v1", "site_id": "SITE-PUN-01", "as_of": "2026-10-14T11:06:02.000+05:30",
+  "pins": [
+    { "pin_id": "0192f1b0-0a11-7d42-b0c3-6e1f2a3b4c5d", "site_id": "SITE-PUN-01", "type": "WORKER_ZONE",
+      "geometry": {"type": "Point", "coordinates": [176.0, 88.5]}, "radius_m": 10, "line_clearance_m": null,
+      "created_by": "OP1001", "created_at": "2026-10-14T11:05:48.000+05:30", "confirmations": 0,
+      "expires_at": "2026-10-15T11:05:48.000+05:30", "status": "ACTIVE", "version": 1,
+      "updated_at": "2026-10-14T11:05:48.000+05:30", "deleted": false },
+    { "pin_id": "0192e000-0000-7000-8000-000000000001", "site_id": "SITE-PUN-01", "type": "OVERHEAD_LINE",
+      "geometry": {"type": "Polygon", "coordinates": [[[220, 60], [260, 60], [260, 70], [220, 70], [220, 60]]]},
+      "radius_m": null, "line_clearance_m": 8.0,
+      "created_by": "SUP001", "created_at": "2026-10-10T08:00:00.000+05:30", "confirmations": 3,
+      "expires_at": null, "status": "ACTIVE", "version": 2,
+      "updated_at": "2026-10-12T09:15:00.000+05:30", "deleted": false } ] }

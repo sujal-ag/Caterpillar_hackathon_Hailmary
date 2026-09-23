@@ -1,0 +1,84 @@
+# Default:          docker compose -f infra/docker-compose.yml up -d        -> mosquitto + edge-api
+# Profiles:         --profile sim    replay fixture in a loop (placeholder until P1's simulator image)
+#                   --profile llm    ollama (used from Phase 8)
+#                   --profile cloud  postgres + cloud-api (must run on another host for the unplug demo, D16)
+name: operator-companion
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports: ["1883:1883"]
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  edge-api:
+    build: {context: .., dockerfile: infra/Dockerfile.edge}
+    image: operator-companion/edge:dev
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      SITE_TZ: ${SITE_TZ:-Asia/Kolkata}
+    ports: ["8000:8000"]
+    depends_on:
+      mosquitto: {condition: service_healthy}
+    restart: unless-stopped
+
+  simulator:
+    profiles: [sim]
+    image: operator-companion/edge:dev
+    command: ["python", "tools/replay.py", "tests/fixtures/replay_10min.jsonl", "--loop"]
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+    depends_on:
+      mosquitto: {condition: service_healthy}
+    healthcheck: {disable: true}
+    restart: unless-stopped
+
+  ollama:
+    profiles: [llm]
+    image: ollama/ollama:latest
+    ports: ["11434:11434"]
+    volumes: [ollama-models:/root/.ollama]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres:
+    profiles: [cloud]
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-companion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-companion-dev}
+      POSTGRES_DB: ${POSTGRES_DB:-companion}
+    volumes: [pg-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  cloud-api:
+    profiles: [cloud]
+    image: operator-companion/edge:dev
+    command: ["uvicorn", "cloud.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["8001:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: unless-stopped
+
+volumes:
+  mosquitto-data:
+  ollama-models:
+  pg-data:

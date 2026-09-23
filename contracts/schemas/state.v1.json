@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "state.v1",
+  "title": "StateV1",
+  "description": "Operator State Engine output on cat/{site}/{machine}/state, on change <= 1 Hz (plan §5.3).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "ts",
+    "machine_id",
+    "operator_id",
+    "shift_id",
+    "class",
+    "active_rules",
+    "exit_state",
+    "exit_checks",
+    "readiness",
+    "sensor_health",
+    "data_stale"
+  ],
+  "properties": {
+    "schema": {
+      "const": "state.v1"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "machine_id": {
+      "type": "string"
+    },
+    "operator_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "shift_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "class": {
+      "enum": [
+        "PRODUCTIVE",
+        "ATTENTION",
+        "UNSAFE",
+        "PARKED",
+        "OFF"
+      ]
+    },
+    "active_rules": {
+      "type": "array",
+      "items": {
+        "title": "ActiveRule",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule_id",
+          "level"
+        ],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "pattern": "^R\\d{2}$"
+          },
+          "level": {
+            "enum": [
+              "INFO",
+              "CAUTION",
+              "WARNING",
+              "CRITICAL"
+            ]
+          }
+        }
+      }
+    },
+    "exit_state": {
+      "enum": [
+        "NONE",
+        "SAFE",
+        "SAFE_ENGINE_ON",
+        "UNSAFE"
+      ]
+    },
+    "exit_checks": {
+      "title": "ExitChecks",
+      "description": "Live Exit Guard checklist (D1). PARK_BRAKE_OFF only for wheel loaders. Empty when no exit intent.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ENGINE_RUNNING": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "UNKNOWN"
+          ]
+        },
+        "HYD_UNLOCKED": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "UNKNOWN"
+          ]
+        },
+        "IMPLEMENT_RAISED": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "UNKNOWN"
+          ]
+        },
+        "MOVING": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "UNKNOWN"
+          ]
+        },
+        "PARK_BRAKE_OFF": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "UNKNOWN"
+          ]
+        },
+        "SLOPE": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "UNKNOWN"
+          ]
+        }
+      }
+    },
+    "readiness": {
+      "enum": [
+        "GREEN",
+        "YELLOW",
+        "RED",
+        null
+      ]
+    },
+    "sensor_health": {
+      "title": "SensorHealth",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seat",
+        "seatbelt",
+        "position",
+        "proximity",
+        "data"
+      ],
+      "properties": {
+        "seat": {
+          "enum": [
+            "OK",
+            "UNKNOWN",
+            "UNAVAILABLE"
+          ]
+        },
+        "seatbelt": {
+          "enum": [
+            "OK",
+            "UNKNOWN",
+            "UNAVAILABLE"
+          ]
+        },
+        "position": {
+          "enum": [
+            "OK",
+            "UNKNOWN",
+            "UNAVAILABLE"
+          ]
+        },
+        "proximity": {
+          "enum": [
+            "OK",
+            "UNKNOWN",
+            "UNAVAILABLE"
+          ]
+        },
+        "data": {
+          "enum": [
+            "OK",
+            "UNKNOWN",
+            "UNAVAILABLE"
+          ]
+        }
+      }
+    },
+    "data_stale": {
+      "type": "boolean"
+    }
+  }
+}

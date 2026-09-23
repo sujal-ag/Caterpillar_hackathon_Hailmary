@@ -1,0 +1,15 @@
+{
+  "schema": "task.v1",
+  "task_id": "0192f0de-11aa-7c55-8e21-44d0b7a1c2f3",
+  "shift_id": "SH-20261014-EXC001-D", "machine_id": "EXC001", "operator_id": "OP1001",
+  "task_type_id": "TRUCK_LOAD", "zone_id": "Z-NORTH-CUT",
+  "planned_quantity": 420, "unit": "M3", "soil_type": "CLAY_WET", "material_density_t_m3": 1.7,
+  "trucks_assigned": 3, "truck_capacity_t": 16,
+  "scheduled_start": "2026-10-14T13:15:00+05:30", "scheduled_end": "2026-10-14T15:30:00+05:30",
+  "status": "SCHEDULED", "priority": 2,
+  "prediction": { "p50_min": 145, "p90_min": 172, "eta": "2026-10-14T15:40:00+05:30",
+                  "drivers": [ {"feature": "soil_type=CLAY_WET", "effect_pct": 12},
+                               {"feature": "operator_rate_trend", "effect_pct": -4},
+                               {"feature": "heat_index_c=39", "effect_pct": 5} ],
+                  "model_version": "eta-lgbm-2026.10.13" }
+}

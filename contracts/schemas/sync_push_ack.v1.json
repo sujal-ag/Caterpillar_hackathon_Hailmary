@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sync_push_ack.v1",
+  "title": "SyncPushAckV1",
+  "description": "POST /sync/push response. Lists every processed seq, duplicates included (idempotent).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "acked_seqs"
+  ],
+  "properties": {
+    "acked_seqs": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    }
+  }
+}

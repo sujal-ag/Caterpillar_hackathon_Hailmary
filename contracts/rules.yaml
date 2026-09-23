@@ -1,0 +1,592 @@
+# Rule table v1 — HLD §4.4, with plan.md §3 decisions applied.
+# Every threshold lives here or in data/seed/machine_models.yaml ("thresholds: machine_model").
+# `assumption: true` marks values the team must review.
+#
+# Keys per rule (plan.md Phase 0 item 4), plus two additive keys:
+#   once_per:     cooldown scope for HLD "per exit / per event / per code ..." cooldowns
+#                 (EXIT | EVENT | EPISODE | CODE | ZONE_ENTRY | SHIFT | null)
+#   escalate_to:  what an escalation changes (level, channels, audio_clip); used with escalate_after_s
+# `display` for rules the HLD does not specify (anything except R02/R03/R05/R09) is a backend
+# proposal for P3 to confirm; the rule is tagged `display_proposed: true`.
+#
+# Plan-wins note on HLD "State" column (D20): state_effect UNSAFE | ATTENTION | NONE.
+
+version: 1
+hld_ref: "§4.4"
+
+# Derived predicates (HLD §4.4 "Derived predicates used by rules").
+predicates:
+  active:
+    travel_kmh_gt: 0.3
+    swing_deg_s_abs_gt: 1
+    hyd_pump_press_kpa_gt: 4000
+    joystick_window_s: 5
+    hld_ref: "§4.4 active"
+  idle:
+    min_s: 30
+    hld_ref: "§4.4 idle"
+  grounded:
+    bucket_height_m_le: 0.3
+    hld_ref: "§4.4 grounded; D12"
+  exit_intent:
+    seat_vacated_gt_s: 2
+    hld_ref: "§4.4 exit_intent (strong)"
+  exit_hint:
+    belt_off_within_s: 10
+    hld_ref: "§4.4 exit_hint (weak)"
+  wet:
+    rh_pct_ge: 90
+    dew_point_spread_c_le: 2
+    hld_ref: "§4.4 wet"
+  moving:
+    travel_kmh_gt: 0.3
+    hld_ref: "D1 MOVING check; same travel threshold as `active`"
+
+# Exit Guard check set (D1).
+exit_checks:
+  all_models: [ENGINE_RUNNING, HYD_UNLOCKED, IMPLEMENT_RAISED, MOVING, SLOPE]
+  wheel_loader_extra: [PARK_BRAKE_OFF]
+  slope_thresholds: machine_model      # pitch/roll > model caution
+  hld_ref: "D1"
+
+# Engine-wide timing and alert-fatigue policy.
+policy:
+  audio_budget_s: 30                   # max one non-CRITICAL audio per 30 s per machine (§4.4)
+  target_noncritical_alerts_per_h: 4   # §4.4 alert-fatigue KPI
+  class_hysteresis_s: 10               # §4.3
+  data_stale_s: 3                      # §4.2
+  switch_flap_suppress_ms: 500         # D2 leading-edge debounce
+  proximity_fresh_s: 1                 # plan Phase 3 item 1
+  position_stale_s: 10                 # §4.12
+  tone_patterns:
+    INFO: tone_info
+    CAUTION: tone_caution
+    WARNING: tone_warning
+    CRITICAL: tone_critical
+  hld_ref: "§4.2, §4.3, §4.4, §4.12"
+
+rules:
+  - id: R01
+    name: seatbelt_off_while_active
+    subject: SEATBELT
+    level: CRITICAL
+    state_effect: UNSAFE
+    predicate: seatbelt_off_while_active
+    params: {}
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO, VIBRATION]
+    message_key: nudge.seatbelt.off_while_operating
+    audio_clip: seatbelt_off_while_operating
+    cooldown_s: 20
+    repeat_while_true_s: 20
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: true
+    enabled: true
+    hld_ref: "§4.4 R01"
+
+  - id: R02
+    name: seatbelt_off_parked
+    subject: SEATBELT
+    level: INFO
+    state_effect: ATTENTION
+    predicate: seatbelt_off_parked
+    params: {}
+    display: CHIP
+    channels: [VISUAL]
+    message_key: nudge.seatbelt.off_parked
+    audio_clip: null
+    cooldown_s: 300
+    repeat_while_true_s: null
+    escalate_after_s: 300
+    escalate_to: {level: CAUTION, channels: [VISUAL, AUDIO], audio_clip: chime_soft}
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R02"
+
+  - id: R03
+    name: exit_guard_unsafe
+    subject: EXIT
+    level: CRITICAL
+    state_effect: UNSAFE
+    predicate: exit_guard_unsafe
+    params: {}
+    display: FULLSCREEN
+    channels: [VISUAL, AUDIO, VIBRATION]
+    message_key: nudge.exit_guard.before_exiting
+    audio_clip: exit_guard_before_exiting
+    cooldown_s: 0
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: true
+    enabled: true
+    hld_ref: "§4.4 R03; D1"
+
+  - id: R04
+    name: exit_secured_engine_on
+    subject: EXIT
+    level: CAUTION
+    state_effect: ATTENTION
+    predicate: exit_safe_engine_on
+    params: {}
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    message_key: nudge.exit.secured_engine_on
+    audio_clip: exit_secured_engine_on
+    cooldown_s: 0
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: EXIT
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R04; D1"
+
+  - id: R05
+    name: exit_prewarn
+    subject: EXIT
+    level: INFO
+    state_effect: NONE
+    predicate: exit_hint_only
+    params: {}
+    display: CHIP
+    channels: [VISUAL]
+    message_key: nudge.exit.prewarn
+    audio_clip: null
+    cooldown_s: 0
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: EVENT
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R05; D19"
+
+  - id: R06
+    name: three_point_contact
+    subject: EXIT
+    level: CAUTION
+    state_effect: NONE
+    predicate: exit_and_wet
+    params: {}
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    message_key: nudge.exit.three_point_contact
+    audio_clip: exit_three_point_contact
+    cooldown_s: 0
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: EXIT
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R06"
+
+  - id: R07
+    name: belt_bypass
+    subject: SEATBELT
+    level: WARNING
+    state_effect: ATTENTION
+    predicate: belt_bypass
+    params: {seat_empty_gt_s: 5}
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    message_key: nudge.seatbelt.bypass
+    audio_clip: seatbelt_bypass
+    cooldown_s: 1800
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: true
+    lesson_trigger: true
+    enabled: true
+    hld_ref: "§4.4 R07"
+
+  - id: R08
+    name: long_idle_unbelted
+    subject: IDLE
+    level: CAUTION
+    state_effect: ATTENTION
+    predicate: long_idle_unbelted
+    params: {idle_episode_ge_min: 9}
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    message_key: nudge.idle.leaving_shutdown
+    audio_clip: idle_leaving_shutdown
+    cooldown_s: 900
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: true
+    enabled: true
+    hld_ref: "§4.4 R08"
+
+  - id: R09
+    name: long_idle
+    subject: IDLE
+    level: INFO
+    state_effect: ATTENTION
+    predicate: long_idle
+    params: {idle_episode_ge_min: 9}
+    display: CHIP
+    channels: [VISUAL]
+    message_key: nudge.idle.reason_prompt
+    audio_clip: null
+    cooldown_s: 0
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: EPISODE
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R09; §6.10 idle buckets"
+
+  - id: R10
+    name: tilt_caution
+    subject: TILT
+    level: CAUTION
+    state_effect: ATTENTION
+    predicate: tilt_caution
+    params: {thresholds: machine_model}   # pitch/roll_caution_deg; roll_caution_lift_deg in lift_mode
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    message_key: nudge.tilt.slope
+    audio_clip: tilt_slope
+    cooldown_s: 60
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R10; §6.0"
+
+  - id: R11
+    name: tilt_critical
+    subject: TILT
+    level: CRITICAL
+    state_effect: UNSAFE
+    predicate: tilt_critical
+    params: {thresholds: machine_model}   # pitch/roll_critical_deg
+    display: FULLSCREEN
+    display_proposed: true
+    channels: [VISUAL, AUDIO, VIBRATION]
+    message_key: nudge.tilt.tip_over
+    audio_clip: tilt_tip_over
+    cooldown_s: 20
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: true
+    enabled: true
+    hld_ref: "§4.4 R11; §6.0"
+
+  - id: R12
+    name: proximity_critical
+    subject: PROXIMITY
+    level: CRITICAL
+    state_effect: UNSAFE
+    predicate: proximity_critical
+    params: {thresholds: machine_model}   # proximity_critical_m (D9)
+    display: FULLSCREEN
+    display_proposed: true
+    channels: [VISUAL, AUDIO, VIBRATION]
+    message_key: nudge.proximity.person_behind
+    audio_clip: proximity_person_behind
+    cooldown_s: 5
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: true
+    enabled: true
+    hld_ref: "§4.4 R12; D9"
+
+  - id: R13
+    name: proximity_warning
+    subject: PROXIMITY
+    level: WARNING
+    state_effect: ATTENTION
+    predicate: proximity_warning
+    params: {thresholds: machine_model}   # proximity_warning_m (D9)
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]            # HLD: visual + tone (no voice clip)
+    message_key: nudge.proximity.person_near
+    audio_clip: null
+    cooldown_s: 15
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R13; D9"
+
+  - id: R14
+    name: geofence_enter
+    subject: GEOFENCE
+    level: WARNING
+    state_effect: ATTENTION
+    predicate: geofence_enter
+    params: {exit_hysteresis_m: 2}
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    # {hazard_type} expands over hazard_pin.type; contract test checks every variant exists.
+    message_key: "nudge.geofence.enter.{hazard_type}"
+    audio_clip: "geofence_enter_{hazard_type}"
+    cooldown_s: 0
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: ZONE_ENTRY
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R14; §4.12"
+
+  - id: R15
+    name: powerline_clearance
+    subject: POWERLINE
+    level: CRITICAL
+    state_effect: UNSAFE
+    predicate: powerline_clearance
+    params: {clearance_margin_m: 3}
+    display: FULLSCREEN
+    display_proposed: true
+    channels: [VISUAL, AUDIO, VIBRATION]
+    message_key: nudge.powerline.too_close
+    audio_clip: powerline_too_close
+    cooldown_s: 5
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: true
+    enabled: true
+    hld_ref: "§4.4 R15"
+
+  - id: R16
+    name: dtc_stop
+    subject: DTC
+    level: CRITICAL
+    state_effect: UNSAFE
+    predicate: dtc_action_class
+    params: {action_class: STOP}
+    display: FULLSCREEN
+    display_proposed: true
+    channels: [VISUAL, AUDIO, VIBRATION]
+    message_key: nudge.dtc.stop
+    audio_clip: dtc_stop
+    cooldown_s: 0
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: CODE
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R16; §4.9"
+
+  - id: R17
+    name: dtc_monitor
+    subject: DTC
+    level: CAUTION
+    state_effect: ATTENTION
+    predicate: dtc_action_class
+    params: {action_class: MONITOR}
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    message_key: nudge.dtc.monitor
+    audio_clip: dtc_monitor
+    cooldown_s: 0
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: CODE
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R17; §4.9"
+
+  - id: R18
+    name: temp_rising
+    subject: TEMP
+    level: CAUTION
+    state_effect: ATTENTION
+    predicate: temp_rising
+    params: {thresholds: machine_model}   # coolant_caution_c 105, hyd_oil_caution_c 95
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    message_key: nudge.temp.rising
+    audio_clip: temp_rising
+    cooldown_s: 600
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R18; §6.0"
+
+  - id: R19
+    name: fatigue_camera
+    subject: FATIGUE
+    level: WARNING
+    state_effect: ATTENTION
+    predicate: fatigue_camera
+    params: {perclos_pct_gt: 15, long_blinks_per_min_ge: 2, window_s: 60}
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    message_key: nudge.fatigue.take_break
+    audio_clip: fatigue_take_break
+    cooldown_s: 600
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: false                       # stretch (D21)
+    hld_ref: "§4.4 R19; §7.4; D21"
+
+  - id: R20
+    name: readiness_red
+    subject: READINESS
+    level: WARNING
+    state_effect: ATTENTION
+    predicate: readiness_red
+    params: {}
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    message_key: nudge.readiness.red
+    audio_clip: readiness_red
+    cooldown_s: 0
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: SHIFT
+    notify_supervisor: true
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R20; §7.4; I10"
+
+  - id: R21
+    name: heat_risk
+    subject: HEAT
+    level: CAUTION
+    state_effect: NONE
+    predicate: heat_risk
+    params: {wbgt_est_c_ge: 28}
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    message_key: nudge.heat.hydrate
+    audio_clip: heat_hydrate
+    cooldown_s: 2700
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R21"
+
+  - id: R22
+    name: coupler_unverified
+    subject: COUPLER
+    level: WARNING
+    state_effect: ATTENTION
+    predicate: coupler_unverified
+    params: {test_window_s: 180, ground_press_hold_s: 2}
+    display: BANNER
+    display_proposed: true
+    channels: [VISUAL, AUDIO]
+    message_key: nudge.coupler.not_verified
+    audio_clip: coupler_not_verified
+    cooldown_s: 60
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: true
+    enabled: false                       # stretch (D21)
+    hld_ref: "§4.4 R22; §2 #16; D21"
+
+  - id: R23
+    name: anomaly_flag
+    subject: ANOMALY
+    level: INFO
+    state_effect: ATTENTION
+    predicate: anomaly_top_pct
+    params: {top_pct: 3}
+    display: CHIP
+    display_proposed: true
+    channels: [VISUAL]                   # HLD: no audio
+    message_key: nudge.anomaly.flagged
+    audio_clip: null
+    cooldown_s: 3600
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R23; §4.5"
+
+  - id: R24
+    name: fuel_efficiency
+    subject: EFFICIENCY
+    level: INFO
+    state_effect: ATTENTION
+    predicate: fuel_vs_baseline
+    params: {ratio_gt: 1.4, baseline_days: 14, deliver_at_pause: true}
+    display: CHIP
+    display_proposed: true
+    channels: [VISUAL]
+    message_key: nudge.efficiency.fuel_tip
+    audio_clip: null
+    cooldown_s: 86400
+    repeat_while_true_s: null
+    escalate_after_s: null
+    escalate_to: null
+    once_per: null
+    notify_supervisor: false
+    lesson_trigger: false
+    enabled: true
+    hld_ref: "§4.4 R24; §6.10"

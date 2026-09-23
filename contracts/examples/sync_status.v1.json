@@ -1,0 +1,2 @@
+{ "schema": "sync_status.v1", "ts": "2026-10-14T11:06:10.000+05:30",
+  "online": false, "forced_offline": false, "queue_depth": 213, "last_success_at": "2026-10-14T10:59:40.000+05:30" }

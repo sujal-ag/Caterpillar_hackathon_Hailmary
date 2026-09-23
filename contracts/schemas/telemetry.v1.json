@@ -1,0 +1,480 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "telemetry.v1",
+  "title": "TelemetryV1",
+  "description": "Normalised 1 Hz telemetry, ingest -> all on cat/{site}/{machine}/telemetry (HLD §6.15). null = UNKNOWN. Groups marked optional below were added beyond the HLD sample (HLD §6.8 fields).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "ts",
+    "machine_id",
+    "operator_id",
+    "shift_id",
+    "engine",
+    "hyd",
+    "implement",
+    "motion",
+    "cab",
+    "pos",
+    "counters",
+    "proximity",
+    "quality"
+  ],
+  "properties": {
+    "schema": {
+      "const": "telemetry.v1"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "machine_id": {
+      "type": "string"
+    },
+    "operator_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "shift_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "engine": {
+      "title": "TelemetryEngine",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "rpm",
+        "load_pct",
+        "fuel_rate_lph",
+        "fuel_used_total_l",
+        "fuel_level_pct",
+        "def_level_pct",
+        "hours",
+        "idle_hours_total",
+        "coolant_c",
+        "oil_press_kpa"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "OFF",
+            "CRANKING",
+            "RUNNING",
+            null
+          ]
+        },
+        "rpm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "load_pct": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fuel_rate_lph": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fuel_used_total_l": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fuel_level_pct": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "def_level_pct": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "hours": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "idle_hours_total": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "coolant_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "oil_press_kpa": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "battery_v": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "power_mode": {
+          "enum": [
+            "ECO",
+            "POWER",
+            "SMART",
+            null
+          ]
+        }
+      }
+    },
+    "hyd": {
+      "title": "TelemetryHyd",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pump_press_kpa",
+        "oil_temp_c",
+        "lockout"
+      ],
+      "properties": {
+        "pump_press_kpa": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "oil_temp_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "lockout": {
+          "enum": [
+            "LOCKED",
+            "UNLOCKED",
+            null
+          ]
+        }
+      }
+    },
+    "implement": {
+      "title": "TelemetryImplement",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boom_deg",
+        "stick_deg",
+        "bucket_deg",
+        "bucket_height_m",
+        "grounded",
+        "payload_kg",
+        "attachment_id",
+        "coupler"
+      ],
+      "properties": {
+        "boom_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "stick_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "bucket_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "bucket_height_m": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "boom_tip_height_m": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "grounded": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "bucket_height_m <= 0.3 (D12)."
+        },
+        "payload_kg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "attachment_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "coupler": {
+          "enum": [
+            "LOCKED",
+            "UNLOCKED",
+            "UNKNOWN",
+            null
+          ]
+        }
+      }
+    },
+    "motion": {
+      "title": "TelemetryMotion",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activity",
+        "travel_kmh",
+        "swing_deg_s",
+        "pitch_deg",
+        "roll_deg"
+      ],
+      "properties": {
+        "activity": {
+          "enum": [
+            "OFF",
+            "IDLE",
+            "WORKING",
+            "TRAVELLING",
+            "LIFTING",
+            null
+          ],
+          "description": "Coarse activity derived by backend (plan §5.2)."
+        },
+        "activity_hint": {
+          "enum": [
+            "OFF",
+            "IDLE",
+            "DIGGING",
+            "SWING_LOADED",
+            "DUMPING",
+            "SWING_EMPTY",
+            "TRAVELLING",
+            "LIFTING",
+            null
+          ],
+          "description": "Fine phase from sim, display only."
+        },
+        "travel_kmh": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "swing_deg_s": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "pitch_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "roll_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "articulation_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "parking_brake": {
+          "enum": [
+            "ON",
+            "OFF",
+            null
+          ]
+        },
+        "transmission_gear": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "cab": {
+      "title": "TelemetryCab",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seatbelt",
+        "seat_occupied",
+        "door_open",
+        "cab_temp_c",
+        "ac_on"
+      ],
+      "properties": {
+        "seatbelt": {
+          "enum": [
+            "FASTENED",
+            "UNFASTENED",
+            "FAULT",
+            null
+          ]
+        },
+        "seat_occupied": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "door_open": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cab_temp_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "ac_on": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "joystick_active": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "lift_mode": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "pos": {
+      "title": "TelemetryPos",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x_m",
+        "y_m",
+        "heading_deg"
+      ],
+      "properties": {
+        "x_m": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "y_m": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "heading_deg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "counters": {
+      "title": "TelemetryCounters",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pass_count",
+        "load_count"
+      ],
+      "properties": {
+        "pass_count": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "load_count": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "proximity": {
+      "title": "TelemetryProximity",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min_dist_m",
+        "sector"
+      ],
+      "properties": {
+        "min_dist_m": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "sector": {
+          "enum": [
+            "REAR",
+            "LEFT",
+            "RIGHT",
+            "FRONT",
+            null
+          ]
+        }
+      }
+    },
+    "quality": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "data_quality bitmask (stale/fault flags)."
+    }
+  }
+}

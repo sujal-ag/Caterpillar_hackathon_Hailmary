@@ -1,0 +1,6 @@
+{ "device_id": "EDGE-EXC001",
+  "batch": [
+    { "seq": 101, "entity": "incident", "entity_id": "0192f1b0-02c4-7e19-a3f6-9b7d5e0c1a22", "op": "UPSERT",
+      "priority": 0, "payload": {"type": "NEAR_MISS", "category": "PERSON_PROXIMITY"} },
+    { "seq": 102, "entity": "machine_state_snapshot", "entity_id": "EXC001", "op": "UPSERT",
+      "priority": 1, "payload": {"class": "PRODUCTIVE"} } ] }

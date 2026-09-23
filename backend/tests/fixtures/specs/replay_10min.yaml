@@ -1,0 +1,79 @@
+# 10 min of EXC001: normal truck loading, then one unsafe exit that is corrected in 14 s
+# (HLD §3.2 sequence), time outside, remount, back to work. Dew on the steps (wet).
+# Regenerate: python tools/fake_machine.py tests/fixtures/specs/replay_10min.yaml -o tests/fixtures/replay_10min.jsonl
+site_id: SITE-PUN-01
+machine_id: EXC001
+start: "2026-10-14T06:40:00.000+05:30"
+duration_s: 600
+initial:
+  fuel_used_total_l: 15240.6
+  fuel_level_pct: 58.4
+  def_level_pct: 71.0
+  engine_hours: 1524.62
+  coolant_temp_c: 86
+  hyd_oil_temp_c: 62
+  battery_v: 27.1
+  seatbelt: FASTENED
+  parking_brake: "ON"
+  transmission_gear: 0
+  boom_angle_deg: 38.5
+  stick_angle_deg: -62.0
+  bucket_angle_deg: -15.0
+  bucket_height_m: 2.1
+  boom_tip_height_m: 6.2
+  pass_count: 1843
+  load_count: 212
+  idle_hours_total: 581.3
+  pitch_deg: 3.2
+  roll_deg: 1.1
+  x_m: 184.2
+  y_m: 92.7
+  heading_deg: 211
+  seat_occupied: true
+  door_open: false
+  hyd_lockout: UNLOCKED
+  lift_mode: false
+  power_mode: SMART
+  attachment_id: ATT-GP-119
+  coupler_lock: LOCKED
+  cab_temp_c: 27.5
+  cab_ac_on: true
+  articulation_deg: null
+timeline:
+  - at: 0
+    mode: WORK
+    env: {temp_c: 22.0, rh_pct: 95, precip_mm_h: 0.0, rain_flag: false, wind_kmh: 6, gust_kmh: 11,
+          visibility_m: 4000, ground_condition: DRY}
+  - at: 240            # waiting for truck, bucket left up
+    mode: IDLE
+    set: {bucket_height_m: 2.1}
+  - at: 300            # exit hint
+    set: {seatbelt: UNFASTENED}
+    label: UNSAFE_EXIT
+  - at: 302            # SEAT_VACATED -> strong exit intent, Exit Guard
+    set: {seat_occupied: false}
+  - at: 303
+    set: {door_open: true}
+  - at: 308            # operator corrects: bucket down
+    set: {bucket_height_m: 0.1}
+  - at: 312            # hydraulics locked
+    set: {hyd_lockout: LOCKED}
+  - at: 316            # engine off -> SAFE, corrected 14 s after intent
+    mode: "OFF"          # quoted: YAML reads bare OFF as false
+    label: null
+  - at: 330
+    set: {door_open: false}
+  - at: 420            # back at the machine
+    set: {door_open: true}
+  - at: 421
+    set: {seat_occupied: true}
+  - at: 423
+    set: {door_open: false}
+  - at: 425
+    set: {seatbelt: FASTENED}
+  - at: 430
+    mode: IDLE
+  - at: 435
+    set: {hyd_lockout: UNLOCKED}
+  - at: 440
+    mode: WORK

@@ -1,0 +1,34 @@
+# `ml_runtime` package interface — v1
+
+Agreed by: P1 ☐
+
+P1 ships a pip-installable package `ml_runtime`. The backend only loads it and calls it (plan.md §5.6). Model files are loaded from `MODELS_DIR` through `model_registry` (sha256 verified).
+
+```python
+class EtaModel:
+    version: str
+    @classmethod
+    def load(cls, path: str) -> "EtaModel": ...
+    def predict(self, feats: dict) -> dict:
+        # -> {"p50_min": float, "p90_min": float,
+        #     "drivers": [{"feature": str, "effect_pct": float}]}   # top 3
+
+class AnomalyModel:
+    version: str
+    family: str                       # EXCAVATOR | WHEEL_LOADER
+    threshold_top3pct: float          # score at/above which a window is "top 3%"
+    @classmethod
+    def load(cls, path: str) -> "AnomalyModel": ...
+    def score(self, window: dict, baseline: dict) -> dict:
+        # -> {"score": 0..1, "top_features": [{"feature","value","baseline","z"}]}
+```
+
+- Feature dict keys are exactly the ones in `ml_features.md`, with the units given there.
+- Library versions: the backend pins the **same** scikit-learn / lightgbm / joblib versions as P1's training env (D24). P1 fills this in: `scikit-learn==☐ lightgbm==☐ joblib==☐ python==3.11`.
+- `load()` must fail loudly on a corrupt or incompatible file. The backend then keeps the previous model.
+
+Backend fallbacks (always available, no P1 code needed):
+- ETA → `generic_eta()` = task-type base-rate midpoint × soil fill factor (HLD §6.7). `p90 = 1.4 × p50`. `model_version: "generic"`, label `"Estimate (generic)"`.
+- Anomaly → no score. `health.models.anomaly = "UNAVAILABLE"`. Rules keep running.
+
+Until P1 delivers, a stub in `backend/tests/stubs/ml_runtime/` implements this interface (Phase 6).

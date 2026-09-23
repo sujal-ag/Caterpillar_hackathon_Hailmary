@@ -1,0 +1,4 @@
+{
+  "schema": "proximity.v1", "ts": "2026-10-14T11:05:49.000+05:30", "machine_id": "EXC001",
+  "min_dist_m": null, "sector": null, "conf": null, "frame_ok": false, "source": "cv"
+}

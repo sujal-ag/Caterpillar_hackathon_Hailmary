@@ -1,0 +1,13 @@
+{
+  "schema": "event.v1",
+  "event_id": "0192f1a4-7c3e-7b21-9d0a-5e8f2c1b3a90",
+  "ts": "2026-10-14T10:42:21.300+05:30",
+  "machine_id": "EXC001", "operator_id": "OP1001", "shift_id": "SH-20261014-EXC001-D",
+  "type": "EXIT_ATTEMPT", "severity": "CRITICAL", "rule_id": "R03", "seq": 88213, "source": "risk-engine",
+  "payload": {
+    "trigger": "STRONG", "signals": ["SEATBELT_UNFASTENED", "SEAT_VACATED"],
+    "exit_state": "UNSAFE",
+    "failed_checks": ["ENGINE_RUNNING", "HYD_UNLOCKED", "IMPLEMENT_RAISED"],
+    "bucket_height_m": 2.1, "wet_conditions": true, "dew_point_spread_c": 1.2
+  }
+}

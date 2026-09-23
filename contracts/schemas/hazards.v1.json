@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hazards.v1",
+  "title": "HazardsV1",
+  "description": "Full hazard list, RETAINED on cat/{site}/hazards; also WS type 'hazards' (HLD §4.12, §6.11). Geometry in local site metres.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "site_id",
+    "as_of",
+    "pins"
+  ],
+  "properties": {
+    "schema": {
+      "const": "hazards.v1"
+    },
+    "site_id": {
+      "type": "string"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "pins": {
+      "type": "array",
+      "items": {
+        "title": "HazardPin",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pin_id",
+          "site_id",
+          "type",
+          "geometry",
+          "radius_m",
+          "line_clearance_m",
+          "created_by",
+          "created_at",
+          "confirmations",
+          "expires_at",
+          "status",
+          "version",
+          "updated_at",
+          "deleted"
+        ],
+        "properties": {
+          "pin_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "site_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "WORKER_ZONE",
+              "OVERHEAD_LINE",
+              "SOFT_GROUND",
+              "BURIED_UTILITY",
+              "TRENCH",
+              "DROP_OFF",
+              "OTHER"
+            ]
+          },
+          "geometry": {
+            "title": "LocalGeometry",
+            "description": "GeoJSON-shaped Point or Polygon in local metres [x_m, y_m].",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "coordinates"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "Point",
+                  "Polygon"
+                ]
+              },
+              "coordinates": {
+                "type": "array"
+              }
+            }
+          },
+          "radius_m": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Point pins; default 10 m."
+          },
+          "line_clearance_m": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "OVERHEAD_LINE only."
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "confirmations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "RESOLVED",
+              "PENDING_REVIEW"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "deleted": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

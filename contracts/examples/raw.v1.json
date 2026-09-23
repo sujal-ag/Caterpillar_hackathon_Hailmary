@@ -1,0 +1,18 @@
+{
+  "schema": "raw.v1", "ts": "2026-10-14T10:42:17.000+05:30",
+  "site_id": "SITE-PUN-01", "machine_id": "EXC001",
+  "can":  { "190": 1010, "92": 12, "183": 2.1, "250": 15240.6, "96": 58.4, "1761": 71.0,
+            "247": 1524.62, "110": 86, "100": 290, "1638": 62, "168": 27.1, "84": 0.0,
+            "1856": "UNFASTENED", "70": "ON", "523": 0 },
+  "sens": { "engine_state": "RUNNING", "hyd_pump_press_kpa": 3100, "swing_rate_deg_s": 0.0,
+            "boom_angle_deg": 38.5, "stick_angle_deg": -62.0, "bucket_angle_deg": -15.0,
+            "bucket_height_m": 2.1, "boom_tip_height_m": 6.2, "payload_kg": 0,
+            "pass_count": 1843, "load_count": 212, "idle_hours_total": 581.3,
+            "pitch_deg": 3.2, "roll_deg": 1.1, "x_m": 184.2, "y_m": 92.7, "heading_deg": 211,
+            "seat_occupied": true, "door_open": false, "hyd_lockout": "UNLOCKED",
+            "joystick_active": false, "lift_mode": false, "power_mode": "SMART",
+            "attachment_id": "ATT-GP-119", "coupler_lock": "LOCKED",
+            "cab_temp_c": 27.5, "cab_ac_on": true, "articulation_deg": null,
+            "activity_hint": "IDLE" },
+  "sim_label": null
+}

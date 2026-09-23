@@ -1,0 +1,6 @@
+{
+  "schema": "dtc.v1", "ts": "2026-10-14T11:20:03.000+05:30",
+  "site_id": "SITE-PUN-01", "machine_id": "EXC001",
+  "spn": 1638, "fmi": 16, "oc": 1, "cat_code": null, "active": true,
+  "freeze_frame": { "hyd_oil_temp_c": 96.4, "engine_load_pct": 71, "ambient_c": 36.0 }
+}

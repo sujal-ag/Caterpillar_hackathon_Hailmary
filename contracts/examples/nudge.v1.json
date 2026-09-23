@@ -1,0 +1,7 @@
+{ "schema": "nudge.v1", "ts": "2026-10-14T10:42:21.320+05:30",
+  "nudge_id": "0192f1a4-7c45-7c33-9a11-2b3c4d5e6f70", "alert_id": "0192f1a4-7c41-7a10-8f00-1d2e3f4a5b6c",
+  "machine_id": "EXC001", "rule_id": "R03", "level": "CRITICAL", "display": "FULLSCREEN",
+  "message_key": "nudge.exit_guard.before_exiting", "slots": {},
+  "audio_clip": "exit_guard_before_exiting", "tone_pattern": "tone_critical",
+  "channels": ["VISUAL", "AUDIO", "VIBRATION"],
+  "checklist": ["IMPLEMENT_RAISED", "HYD_UNLOCKED", "ENGINE_RUNNING", "MOVING", "SLOPE"] }

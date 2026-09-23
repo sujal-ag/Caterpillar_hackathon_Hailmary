@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lesson.v1",
+  "title": "LessonCatalogueV1",
+  "description": "Lesson catalogue + Replay templates, authored by P3 in data/lessons/lessons.json (HLD §6.12). Backend fills template placeholders only; never generates text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "lessons",
+    "replay_templates"
+  ],
+  "properties": {
+    "schema": {
+      "const": "lesson.v1"
+    },
+    "version": {
+      "type": "string"
+    },
+    "lessons": {
+      "type": "array",
+      "items": {
+        "title": "Lesson",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "lesson_id",
+          "title_key",
+          "format",
+          "duration_s",
+          "machine_family",
+          "trigger_rule_ids",
+          "language",
+          "version"
+        ],
+        "properties": {
+          "lesson_id": {
+            "type": "string"
+          },
+          "title_key": {
+            "type": "string"
+          },
+          "format": {
+            "enum": [
+              "CARD",
+              "VIDEO",
+              "MCQ",
+              "REPLAY"
+            ]
+          },
+          "duration_s": {
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 180
+          },
+          "machine_family": {
+            "enum": [
+              "EXCAVATOR",
+              "WHEEL_LOADER",
+              "ANY"
+            ]
+          },
+          "trigger_rule_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^R\\d{2}$"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "content_json": {
+            "type": "object"
+          },
+          "media_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "language": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "generic_for_subject": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Fallback lesson for a rule family when no specific lesson exists (HLD §4.11)."
+          }
+        }
+      }
+    },
+    "replay_templates": {
+      "type": "object",
+      "description": "Keyed by rule_id. Placeholders like {bucket_height_m} and {failed_checks} are filled from the exit's state snapshot.",
+      "propertyNames": {
+        "pattern": "^R\\d{2}$"
+      },
+      "additionalProperties": {
+        "title": "ReplayTemplate",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "prompt",
+          "options",
+          "correct_option",
+          "explanation"
+        ],
+        "properties": {
+          "prompt": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 4,
+            "items": {
+              "type": "string"
+            }
+          },
+          "correct_option": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "doc_reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
