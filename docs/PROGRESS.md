@@ -4,6 +4,47 @@ One entry per phase (plan.md §0 rule 3): what was built, gate results, deviatio
 
 ---
 
+## Phase 2 — Ingestion, events, environment, rollups ✅ (2026-09-23)
+
+### Built
+`backend/edge/ingest/`, all 9 modules from plan.md Phase 2, as pure functions/classes — no live bus wiring yet (that's Phase 4's `bus.py`/`main.py` lifespan; Phase 2 is about the logic being correct and independently testable, per the plan's own dependency-check note).
+
+- `normalise.py`: `validate_raw` (malformed → drop, caller counts), `normalise` (raw.v1 → telemetry_sample dict). Missing/null signal stays `None` (I1). Derives `implement_grounded` (D12), coarse `machine_activity`, a small `data_quality` bitmask.
+- `switches.py`: `Debouncer` — leading-edge debounce (D2). The window is refreshed on every suppressed flap, not fixed from the original accept, so a burst of flapping faster than 500 ms never lets a second change through no matter how long it continues.
+- `events.py`: switch→event type map (HLD §6.9), `Seq` (monotonic per-machine), `make_event`.
+- `stale.py`: `StaleTracker` — `DATA_STALE` after 3 s of silence, `DATA_RESTORED` on resume, one event per stale period.
+- `env.py`: dew point (Magnus), heat index (NOAA Rothfusz + NWS simple-formula fallback), WBGT_est, heat level bands, source-priority `CurrentEnv`.
+- `dtc.py`: `DtcTracker` — active/repeat/cleared lifecycle, catalogue lookup for `action_class` (UNDOCUMENTED if unknown, never guessed — I3).
+- `idle.py`: `IdleTracker` — episodes confirmed only after 30 s of inactivity (HLD §4.4), then backdated to when inactivity actually started so duration matches reality, not the confirmation delay. Buckets PAUSE/SHORT/MEDIUM/LONG.
+- `rollup.py`: `RollupAccumulator` — 1-min and hourly rollups, fuel/load counters as deltas of the cumulative meters, fuel split into idle/work, `fuel_per_load` null under 3 loads (§6.13 guard), idle bucket counts fed from finished `idle.py` episodes (D17: PAUSE counts toward `idling_time_min` only). Fields Phase 3+ owns (`alert_count`, `state_class_mode`, `anomaly_score`, ...) are explicit `None`, not a fake `0`.
+- `retention.py`: `purge_old_samples` — 7-day cutoff delete, callable now, scheduled later (Phase 11).
+
+### Gate results
+| Gate | Result |
+|---|---|
+| SPN mapping for every §5.2 key; missing → UNKNOWN; malformed dropped | ✅ every key round-trips; empty `can` → every mapped field `None`; also validated end-to-end against the real `replay_10min.jsonl` fixture (activity classification matches the known unsafe-exit stretch) |
+| Debounce: flap every 100 ms for 1 s → exactly one change, no delay | ✅ (see deviation below — first version of the window logic didn't survive this) |
+| Stale: `DATA_STALE` within 3-4 s, resume clears it | ✅ |
+| Env formulas match hand-computed values for 3 fixed inputs | ✅ dew point/heat index/WBGT all within 0.01; heat index cross-checked against the published NOAA reference (90°F/70% RH → ~106°F, got 105.9°F) |
+| Idle: pauses of 2/4/7/12 min → PAUSE/SHORT/MEDIUM/LONG; counts 1/1/1; `idling_time_min` includes the 2-min pause | ✅ |
+| Rollup: 2 L/h idle for 60 min → `fuel_used_l` ≈ 2.0; loads<3 → `fuel_per_load` null (§6.13 artefact guard); loads≥3 → populated | ✅ |
+| Organizer anchors (D14) | Skipped, visibly: P1 hasn't delivered anchor traces yet (`data/history/` absent, per `load_history.py`'s own check) |
+| Full suite | ✅ 96 passed; ruff clean |
+
+### Deviations / decisions (flagged, not asked in advance)
+1. **No pipeline/wiring module this phase.** Considered adding one to run the full `replay_10min.jsonl` fixture end-to-end, but the plan's repo layout puts bus wiring under Phase 4 (`bus.py`, `main.py` lifespan). Building it now would mean building it twice. Each module is unit-tested directly instead, including one test that runs `normalise` over every real fixture frame.
+2. **Found and fixed a real debounce bug via the gate test itself, not just a design read.** A "fixed window from the original accept" implementation passes a shallow reading of D2 but fails the plan's own worked example (100 ms flapping for a full second must yield exactly one change). Fixed by refreshing the window on every suppressed attempt instead of only measuring from the last accepted change.
+3. **India's UTC+5:30 offset has a half-hour component** — a UTC-midnight-based test time is *not* hour-aligned in site-local time, which silently broke two rollup window-boundary tests before I noticed. Fixed the tests (site-local `ZoneInfo("Asia/Kolkata")` starting points) and left a comment on it in `test_ingest.py` since the next person writing a rollup test will hit the same trap.
+4. **`idle.py`'s per-episode dt-based accumulators (`seatbelt_off_min`, `mean_rpm`) undercount by about one sample period per episode** — the first tick of a new inactive run has `dt=0` since there's nothing to measure from yet. `duration_min` itself is exact (computed from the actual start/end timestamps, not by summing dt). Documented in the module; not worth the extra state to fix for a sub-1-second-per-episode error.
+5. **Rollup attributes an entire inter-sample interval to the window containing the later sample's timestamp**, and caps any gap at 2 s before accumulating it. At 1 Hz this is at most a fraction of a second of misattribution at each minute/hour boundary. Documented as the upgrade path in `rollup.py` if a slower feed ever makes it matter.
+6. **`safety_alert_triggered`, `alert_count`, `critical_count`, `state_class_mode`, `anomaly_score` are explicit `None`** in the hourly window Phase 2 produces, not `0`/`False` — those are Phase 3/6/10's fields, and a fake zero would be indistinguishable from "confirmed zero" later.
+
+### Open items
+- Wiring these modules to a live MQTT feed is Phase 4 (`bus.py`, `main.py`).
+- Organizer anchor reproduction (D14) waits on P1's `data/history/` export.
+
+---
+
 ## Phase 1 — Storage layer ✅ (2026-09-23)
 
 ### Built
