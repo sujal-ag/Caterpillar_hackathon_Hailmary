@@ -1,26 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-const CHECKS = [
-  {
-    key: 'sleep',
-    label: 'Sleep quality',
-    options: [
-      { value: 'good', label: 'Good (7–8h)' },
-      { value: 'low', label: 'Low (<6h)' },
-      { value: 'very-low', label: 'Very low (<5h)' },
-    ],
-  },
-  {
-    key: 'heat',
-    label: 'Heat/comfort',
-    options: [
-      { value: 'normal', label: 'Normal' },
-      { value: 'warm', label: 'Warm' },
-      { value: 'hot', label: 'High heat' },
-    ],
-  },
-]
-
 export default function ReadinessModal({ onClose, onSubmit }) {
   const [responses, setResponses] = useState({
     sleep: 'good',
@@ -116,33 +95,6 @@ export default function ReadinessModal({ onClose, onSubmit }) {
     reactionState === 'ready' ? 'reaction-button ready' :
       reactionState === 'done' ? 'reaction-button done' :
         'reaction-button'
-
-  const whyRows = [
-    {
-      icon: '☾',
-      label: 'Sleep',
-      value: responses.sleep === 'good' ? '5 hours' : responses.sleep === 'low' ? 'Less than usual 7 hours' : 'Very low recovery',
-      tone: responses.sleep === 'good' ? 'success' : 'warning',
-      badge: responses.sleep === 'good' ? 'OK' : 'Take care',
-      detail: responses.sleep === 'good' ? 'Normal for you' : 'Drink water and rest',
-    },
-    {
-      icon: '↗',
-      label: 'Reaction',
-      value: reactionMs ? `Reaction: ${Math.round(reactionMs)} ms` : 'Reaction: check pending',
-      tone: reactionMs && reactionMs <= 600 ? 'success' : 'warning',
-      badge: reactionMs && reactionMs <= 600 ? 'OK' : 'Take care',
-      detail: reactionMs && reactionMs <= 600 ? 'Normal for you' : 'Slow reaction',
-    },
-    {
-      icon: '◌',
-      label: 'Heat',
-      value: `Heat: ${responses.heat === 'normal' ? '36 °C, humid' : responses.heat === 'warm' ? 'Warm, monitor' : 'High heat alert'}`,
-      tone: responses.heat === 'normal' ? 'success' : 'warning',
-      badge: responses.heat === 'normal' ? 'OK' : 'Take care',
-      detail: responses.heat === 'normal' ? 'Normal for you' : 'Drink water every 30 minutes',
-    },
-  ]
 
   return (
     <div className="modal-backdrop soft-backdrop">

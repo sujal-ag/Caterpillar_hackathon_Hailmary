@@ -1,10 +1,11 @@
 export default function StatusDot({ level }) {
+  const norm = String(level || '').toLowerCase()
   const cls =
-    level === 'critical'
+    norm === 'critical' || norm === 'danger'
       ? 'status-dot critical'
-      : level === 'warning'
+      : norm === 'warning' || norm === 'caution'
         ? 'status-dot warning'
-        : level === 'info'
+        : norm === 'info'
           ? 'status-dot info'
           : 'status-dot success'
 

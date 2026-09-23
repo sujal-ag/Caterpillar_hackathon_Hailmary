@@ -1,4 +1,4 @@
-export default function Dashboard({ showExitGuard, showHazardReport, showReadiness, alerts = [], state = {}, tasks = [] }) {
+export default function Dashboard({ showExitGuard, showHazardReport, showReadiness, onSelectAlert, alerts = [], state = {}, tasks = [] }) {
   const activeAlerts = alerts.slice(0, 3)
   const currentTask = tasks[0] || null
   const machineId = state.machine_id || 'EXC-001'
@@ -10,9 +10,21 @@ export default function Dashboard({ showExitGuard, showHazardReport, showReadine
   const progressValue = currentTask?.progress ?? 0
 
   const metrics = [
-    { label: 'Readiness', value: readinessValue },
-    { label: 'Exit', value: exitGuardRequired ? 'Check' : 'Clear' },
-    { label: 'Alerts', value: `${activeAlerts.length}` },
+    {
+      label: 'Readiness',
+      value: readinessValue,
+      type: readinessValue === 'RED' ? 'danger' : readinessValue === 'YELLOW' ? 'warning' : 'success',
+    },
+    {
+      label: 'Exit',
+      value: exitGuardRequired ? 'Check' : 'Clear',
+      type: exitGuardRequired ? 'warning' : 'success',
+    },
+    {
+      label: 'Alerts',
+      value: `${activeAlerts.length}`,
+      type: activeAlerts.length > 0 ? 'danger' : 'success',
+    },
   ]
 
   return (
@@ -35,7 +47,7 @@ export default function Dashboard({ showExitGuard, showHazardReport, showReadine
 
         <div className="metric-grid">
           {metrics.map((metric) => (
-            <div key={metric.label} className="metric-box">
+            <div key={metric.label} className={`metric-box metric-box-${metric.type}`}>
               <p className="metric-value">{metric.value}</p>
               <p className="metric-label">{metric.label}</p>
             </div>
@@ -97,13 +109,28 @@ export default function Dashboard({ showExitGuard, showHazardReport, showReadine
             <span className="alert-inline-text">Action required</span>
           </div>
         </button>
+
+        <button type="button" className="action-card light" onClick={showHazardReport}>
+          <p className="eyebrow">Safety Event</p>
+          <p className="card-heading">Report Hazard</p>
+          <div className="alert-inline">
+            <span className="status-dot warning" />
+            <span className="alert-inline-text" style={{ color: '#d97706' }}>Log incident</span>
+          </div>
+        </button>
       </div>
 
       <div>
         <p className="section-label">Active Alerts</p>
         <div className="alert-list">
           {activeAlerts.map((alert) => (
-            <div key={alert.id} className="alert-item">
+            <div
+              key={alert.id}
+              className="alert-item"
+              onClick={() => onSelectAlert?.(alert)}
+              style={{ cursor: 'pointer' }}
+              title="Click to view alert diagnostics and thresholds"
+            >
               <span className={`status-dot ${alert.level}`} />
               <div className="alert-copy">
                 <p className="alert-title">{alert.title}</p>

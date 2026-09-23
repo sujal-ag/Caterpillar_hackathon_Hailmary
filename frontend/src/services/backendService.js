@@ -1,11 +1,28 @@
 import { ALERTS as fallbackAlerts, TASKS as fallbackTasks } from '../data/mockData'
 import { BACKEND_STATE, BACKEND_ALERTS, BACKEND_TASKS, BACKEND_NUDGE } from '../data/backendContract'
+import { formatMessage } from '../data/i18n'
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
+const getHost = () => (typeof window !== 'undefined' ? window.location.hostname : 'localhost')
+const getProtocol = () => (typeof window !== 'undefined' ? window.location.protocol : 'http:')
+
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  `${getProtocol()}//${getHost()}:8000`
+).replace(/\/$/, '')
+
+export const WS_BASE_URL = (
+  import.meta.env.VITE_WS_BASE_URL ||
+  `${getProtocol() === 'https:' ? 'wss:' : 'ws:'}//${getHost()}:8000`
+).replace(/\/$/, '')
 
 export function getAuthToken() {
   if (typeof window === 'undefined') return null
   return window.localStorage.getItem('cat-jwt') || null
+}
+
+export function getStoredMachineId() {
+  if (typeof window === 'undefined') return 'EXC001'
+  return window.localStorage.getItem('cat-machine-id') || 'EXC001'
 }
 
 export function getAuthHeaders() {
@@ -46,7 +63,7 @@ async function requestJson(path, options = {}) {
   return readJson(response)
 }
 
-const normalizeAlert = (item) => {
+export const normalizeAlert = (item) => {
   const alert = item?.alert ?? item
   const level = String(alert.level || 'info').toLowerCase()
 
@@ -54,13 +71,16 @@ const normalizeAlert = (item) => {
     id: alert.alert_id,
     level,
     title: alert.subject || 'Alert',
-    message: alert.message_key || 'nudge.alert.raised',
-    time: 'Now',
+    message: formatMessage(alert.message_key, alert.slots) || alert.message_key || 'Safety Alert',
+    time: alert.ts ? new Date(alert.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Now',
     rule: alert.rule_id || 'R00',
     schema: item?.schema || 'alert.v1',
     action: item?.action || 'RAISED',
     messageKey: alert.message_key,
     slots: alert.slots || {},
+    acknowledgedAt: alert.acknowledged_at || null,
+    active: alert.active ?? true,
+    channels: alert.channels || ['VISUAL'],
   }
 }
 
@@ -90,26 +110,33 @@ const normalizeTask = (task) => {
   }
 }
 
-export async function fetchOperatorData() {
+export async function fetchOperatorData(machineId = 'EXC001') {
   try {
     const headers = getAuthHeaders()
     const [stateResponse, tasksResponse] = await Promise.all([
-      fetch(`${API_BASE_URL}/state/current`, { headers }).catch(() => null),
+      fetch(`${API_BASE_URL}/state/current?machine=${machineId}`, { headers }).catch(() => null),
       fetch(`${API_BASE_URL}/tasks?shift_id=SH-20260923-EXC001-D`, { headers }).catch(() => null),
     ])
 
-    const stateData = stateResponse && stateResponse.ok ? await stateResponse.json() : BACKEND_STATE
+    const snapshot = stateResponse && stateResponse.ok ? await stateResponse.json() : null
     const tasksData = tasksResponse && tasksResponse.ok ? await tasksResponse.json() : BACKEND_TASKS
     const taskList = Array.isArray(tasksData) ? tasksData : Array.isArray(tasksData?.items) ? tasksData.items : BACKEND_TASKS
-    const alerts = Array.isArray(stateData?.alerts)
-      ? stateData.alerts.map(normalizeAlert)
-      : BACKEND_ALERTS.map(normalizeAlert)
+
+    // The backend /state/current returns a Snapshot { as_of, state, alerts, hazards, sync, eta }
+    const statePayload = snapshot?.state || BACKEND_STATE
+    const alertList = Array.isArray(snapshot?.alerts)
+      ? snapshot.alerts
+      : (Array.isArray(statePayload?.alerts) ? statePayload.alerts : BACKEND_ALERTS)
 
     return {
-      state: stateData,
-      alerts,
+      state: statePayload,
+      alerts: alertList.map(normalizeAlert),
       tasks: taskList.map(normalizeTask),
       nudge: BACKEND_NUDGE,
+      hazards: snapshot?.hazards || null,
+      sync: snapshot?.sync || null,
+      eta: snapshot?.eta || null,
+      isLive: Boolean(snapshot),
     }
   } catch (error) {
     console.warn('Backend unavailable, falling back to mock data:', error)
@@ -118,7 +145,65 @@ export async function fetchOperatorData() {
       alerts: fallbackAlerts,
       tasks: fallbackTasks,
       nudge: BACKEND_NUDGE,
+      isLive: false,
     }
+  }
+}
+
+export async function acknowledgeAlert(alertId) {
+  try {
+    return await requestJson(`/alerts/${alertId}/ack`, { method: 'POST' })
+  } catch (error) {
+    console.warn(`Failed to acknowledge alert ${alertId}:`, error)
+    return null
+  }
+}
+
+export async function fetchAlertWhy(alertId) {
+  try {
+    return await requestJson(`/alerts/${alertId}/why`)
+  } catch (error) {
+    console.warn(`Failed to fetch why for alert ${alertId}:`, error)
+    return null
+  }
+}
+
+export async function fetchSystemStatus() {
+  try {
+    return await requestJson('/system/status')
+  } catch (error) {
+    console.warn('System status fetch failed:', error)
+    return null
+  }
+}
+
+export async function fetchSimScenarios() {
+  try {
+    return await requestJson('/sim/scenarios')
+  } catch (error) {
+    console.warn('Sim scenarios fetch failed:', error)
+    return { mode: 'replay', scenarios: ['reset', 'unsafe_exit', 'safe_exit', 'proximity_intrusion', 'drive_into_zone', 'dtc_1638_16'] }
+  }
+}
+
+export async function triggerSimScenario(name, speed = 1.0, machineId = 'EXC001') {
+  try {
+    return await requestJson('/sim/scenario', {
+      method: 'POST',
+      body: JSON.stringify({ name, speed, machine_id: machineId }),
+    })
+  } catch (error) {
+    console.warn(`Failed to trigger scenario ${name}:`, error)
+    throw error
+  }
+}
+
+export async function stopSimScenario() {
+  try {
+    return await requestJson('/sim/stop', { method: 'POST' })
+  } catch (error) {
+    console.warn('Failed to stop scenario:', error)
+    return null
   }
 }
 
@@ -235,7 +320,7 @@ export async function createIncident(payload = {}, extras = {}) {
       type: payload.type || 'INCIDENT',
       severity: payload.severity || 'MEDIUM',
       description: payload.description || 'Operator report',
-      machine_id: payload.machine_id || 'EXC-001',
+      machine_id: payload.machine_id || 'EXC001',
       created_by: payload.created_by || 'operator',
       ...payload,
     }))
@@ -258,8 +343,8 @@ export async function createIncident(payload = {}, extras = {}) {
   }
 }
 
-export async function loginWithBadgeAndPin(badgeId, pin) {
-  const payload = { badge_id: badgeId, pin }
+export async function loginWithBadgeAndPin(badgeId, pin, machineId = 'EXC001') {
+  const payload = { badge_id: badgeId, pin, machine_id: machineId }
 
   try {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -270,7 +355,7 @@ export async function loginWithBadgeAndPin(badgeId, pin) {
 
     if (!response.ok) {
       const detail = await response.json().catch(() => null)
-      throw new Error(detail?.detail || 'Login failed')
+      throw new Error(detail?.detail || 'Invalid badge ID or PIN')
     }
 
     const result = await response.json()
@@ -282,25 +367,34 @@ export async function loginWithBadgeAndPin(badgeId, pin) {
 
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('cat-jwt', token)
+      window.localStorage.setItem('cat-machine-id', machineId)
       if (result?.operator?.operator_id) {
         window.localStorage.setItem('cat-operator-id', result.operator.operator_id)
+      }
+      if (result?.operator?.role) {
+        window.localStorage.setItem('cat-operator-role', result.operator.role)
       }
     }
 
     return result
   } catch (error) {
-    console.warn('Auth login unavailable; falling back to local demo auth:', error)
+    console.warn('Auth login failed against live backend:', error.message)
+    // Check if network failed completely (offline demo mode)
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('cat-jwt', 'demo-jwt-token')
+        window.localStorage.setItem('cat-operator-id', badgeId || 'EMP1001')
+        window.localStorage.setItem('cat-machine-id', machineId)
+      }
 
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('cat-jwt', 'demo-jwt-token')
-      window.localStorage.setItem('cat-operator-id', badgeId || 'OP1001')
+      return {
+        token: 'demo-jwt-token',
+        operator: { operator_id: badgeId || 'EMP1001', role: badgeId === 'SUP001' ? 'admin' : 'operator' },
+        shift: { shift_id: 'SH-20260923-EXC001-D' },
+        verified: true,
+        offlineDemo: true,
+      }
     }
-
-    return {
-      token: 'demo-jwt-token',
-      operator: { operator_id: badgeId || 'OP1001', role: 'operator' },
-      shift: { shift_id: 'SH-20260923-EXC001-D' },
-      verified: true,
-    }
+    throw error
   }
 }
