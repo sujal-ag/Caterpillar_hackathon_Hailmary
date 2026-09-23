@@ -3,7 +3,7 @@
 # nothing (not active). Working again from 33; CV frames with frame_ok:false (35-37) and no
 # fresh sim frame -> proximity UNKNOWN, never 'no person'.
 # Phase 3 scenario fixture (plan.md Phase 3 gate). Regenerate:
-#   python tools/fake_machine.py tests/fixtures/specs/proximity_sim.yaml -o tests/fixtures/scenarios/proximity_sim.jsonl
+#   python tools/fake_machine.py tests/fixtures/engine/specs/proximity_sim.yaml -o tests/fixtures/engine/proximity_sim.jsonl
 site_id: SITE-PUN-01
 machine_id: EXC001
 start: "2026-10-14T07:00:00.000+05:30"

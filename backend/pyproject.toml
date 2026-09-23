@@ -12,6 +12,9 @@ dependencies = [
     "sqlmodel",
     "uuid-utils",
     "bcrypt",
+    "aiomqtt",
+    "PyJWT",
+    "pydantic-settings",
 ]
 
 [project.optional-dependencies]
@@ -42,3 +45,7 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency declarations are evaluated once at import, by design.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "edge.api.auth.require"]

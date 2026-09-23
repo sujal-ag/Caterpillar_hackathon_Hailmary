@@ -19,12 +19,13 @@ from collections import Counter
 from datetime import timedelta
 from pathlib import Path
 
+from common.config import Settings
 from common.timeutil import parse_iso
 from edge.engine.machine import MachineEngine
 from edge.engine.rules import ROOT, load_catalogue, load_machine_models, load_machines, load_rules
 from edge.ingest.dtc import build_catalogue_index
 
-TRACES_DIR = ROOT / "data" / "history" / "traces"
+TRACES_DIR = Settings().data_dir / "history" / "traces"
 REPORT = ROOT / "docs" / "eval_rules.md"
 LABEL_RULES = {"UNSAFE_EXIT": {"R03"}, "BELT_BYPASS": {"R07"}}  # HLD §7.3 recall targets
 GRACE_S = 2

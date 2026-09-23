@@ -2,11 +2,14 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Operator Companion edge-api",
-    "version": "0.0.0"
+    "version": "0.4.0"
   },
   "paths": {
     "/health": {
       "get": {
+        "tags": [
+          "system"
+        ],
         "summary": "Health",
         "operationId": "health_health_get",
         "responses": {
@@ -23,6 +26,862 @@
             }
           }
         }
+      }
+    },
+    "/system/status": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "System Status",
+        "operationId": "system_status_system_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/state/current": {
+      "get": {
+        "tags": [
+          "state"
+        ],
+        "summary": "State Current",
+        "operationId": "state_current_state_current_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "machine",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "machine_id, e.g. EXC001",
+              "title": "Machine"
+            },
+            "description": "machine_id, e.g. EXC001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/alerts/{alert_id}/ack": {
+      "post": {
+        "tags": [
+          "state"
+        ],
+        "summary": "Ack",
+        "description": "Ack ≠ clear: the alert stays active until its condition is definitively false.",
+        "operationId": "ack_alerts__alert_id__ack_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alert_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Alert Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Ack Alerts  Alert Id  Ack Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/alerts/{alert_id}/why": {
+      "get": {
+        "tags": [
+          "state"
+        ],
+        "summary": "Why",
+        "description": "The rule and the exact inputs + thresholds that fired it (HLD §10 \"Why?\").",
+        "operationId": "why_alerts__alert_id__why_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alert_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Alert Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Why"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sim/scenarios": {
+      "get": {
+        "tags": [
+          "sim"
+        ],
+        "summary": "Scenarios",
+        "operationId": "scenarios_sim_scenarios_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/sim/scenario": {
+      "post": {
+        "tags": [
+          "sim"
+        ],
+        "summary": "Start",
+        "operationId": "start_sim_scenario_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioStarted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/sim/stop": {
+      "post": {
+        "tags": [
+          "sim"
+        ],
+        "summary": "Stop",
+        "description": "Replay mode: stop the running scenario, including its hold frames, so nothing but the\nreal source (or a probe) publishes for the machine. P1's control API has no stop call\n(sim_control.md), so proxy mode answers 409.",
+        "operationId": "stop_sim_stop_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioStopped"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LoginRequest": {
+        "properties": {
+          "badge_id": {
+            "type": "string",
+            "title": "Badge Id"
+          },
+          "pin": {
+            "type": "string",
+            "title": "Pin"
+          },
+          "machine_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "badge_id",
+          "pin"
+        ],
+        "title": "LoginRequest"
+      },
+      "LoginResponse": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/OperatorOut"
+          },
+          "shift": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shift"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "expires_at",
+          "operator"
+        ],
+        "title": "LoginResponse"
+      },
+      "MachineStatus": {
+        "properties": {
+          "state_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Class"
+          },
+          "data_stale": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Stale"
+          },
+          "sensor_health": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sensor Health"
+          },
+          "disabled_rules": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Disabled Rules"
+          },
+          "alerts_per_operating_hour": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alerts Per Operating Hour"
+          },
+          "dropped_frames": {
+            "type": "integer",
+            "title": "Dropped Frames"
+          },
+          "restarts": {
+            "type": "integer",
+            "title": "Restarts"
+          },
+          "last_restart_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Restart S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state_class",
+          "data_stale",
+          "sensor_health",
+          "disabled_rules",
+          "alerts_per_operating_hour",
+          "dropped_frames",
+          "restarts",
+          "last_restart_s"
+        ],
+        "title": "MachineStatus"
+      },
+      "OperatorOut": {
+        "properties": {
+          "operator_id": {
+            "type": "string",
+            "title": "Operator Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "operator_id",
+          "name",
+          "role"
+        ],
+        "title": "OperatorOut"
+      },
+      "ScenarioList": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "scenarios": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scenarios"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "scenarios"
+        ],
+        "title": "ScenarioList"
+      },
+      "ScenarioRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "machine_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine Id"
+          },
+          "speed": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Speed",
+            "description": "replay mode only: 10 = ten times faster",
+            "default": 1.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ScenarioRequest"
+      },
+      "ScenarioStarted": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "name"
+        ],
+        "title": "ScenarioStarted"
+      },
+      "ScenarioStopped": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "stopped": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "stopped"
+        ],
+        "title": "ScenarioStopped"
+      },
+      "Snapshot": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "title": "As Of"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "alerts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Alerts"
+          },
+          "hazards": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Hazards"
+          },
+          "sync": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Sync"
+          },
+          "eta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "state",
+          "alerts",
+          "hazards",
+          "sync",
+          "eta"
+        ],
+        "title": "Snapshot"
+      },
+      "SystemStatus": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "title": "As Of"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service"
+          },
+          "site_id": {
+            "type": "string",
+            "title": "Site Id"
+          },
+          "machines": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MachineStatus"
+            },
+            "type": "object",
+            "title": "Machines"
+          },
+          "mqtt": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Mqtt"
+          },
+          "sync": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Sync"
+          },
+          "models": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Models"
+          },
+          "sim": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Sim"
+          },
+          "auth_disabled": {
+            "type": "boolean",
+            "title": "Auth Disabled"
+          },
+          "rules_version": {
+            "type": "integer",
+            "title": "Rules Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "service",
+          "site_id",
+          "machines",
+          "mqtt",
+          "sync",
+          "models",
+          "sim",
+          "auth_disabled",
+          "rules_version"
+        ],
+        "title": "SystemStatus"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Why": {
+        "properties": {
+          "alert_id": {
+            "type": "string",
+            "title": "Alert Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "hld_ref": {
+            "type": "string",
+            "title": "Hld Ref"
+          },
+          "message_key": {
+            "type": "string",
+            "title": "Message Key"
+          },
+          "slots": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Slots"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Inputs"
+          },
+          "thresholds": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Thresholds"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "acknowledged_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged At"
+          },
+          "as_of": {
+            "type": "string",
+            "title": "As Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alert_id",
+          "rule_id",
+          "name",
+          "level",
+          "hld_ref",
+          "message_key",
+          "slots",
+          "inputs",
+          "thresholds",
+          "active",
+          "acknowledged_at",
+          "as_of"
+        ],
+        "title": "Why"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }

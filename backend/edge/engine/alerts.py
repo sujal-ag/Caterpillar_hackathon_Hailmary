@@ -11,7 +11,12 @@ Fatigue controls: a higher-level active alert on the same subject marks lower on
 `suppressed=true, HIGHER_ACTIVE` (stored, not nudged); at most one non-CRITICAL audio per
 `audio_budget_s` per machine, over budget -> AUDIO dropped, VISUAL/VIBRATION kept.
 CRITICAL is exempt from cooldown, suppression and the audio budget (I4) — a CRITICAL rule
-re-raises every time its condition becomes true again.
+re-raises every time its condition becomes true again. Raises on the same tick are budgeted
+in `audio_priority` order (rules.yaml; ties keep rule order).
+
+`nudge_due` (reset every `process`) lists the alerts whose change the operator must be told
+about: a raise, a repeat, an escalation or an un-suppression — never a clear, an ack or a
+suppressed alert (Phase 4 nudge generator reads it).
 """
 
 import logging
@@ -48,6 +53,7 @@ class AlertManager:
         self.fired_keys: dict[str, list[str]] = {}
         self.last_audio_at: datetime | None = None
         self.noncritical_raised = 0
+        self.nudge_due: list[str] = []
 
     # --- public -----------------------------------------------------------------------
 
@@ -57,6 +63,8 @@ class AlertManager:
         """`results` holds every enabled, non-disabled rule's evals for this tick.
         Returns [(action, safety_alert record)] in order."""
         out: list[tuple[str, dict]] = []
+        due: list[str] = []
+        candidates: list[tuple[Rule, Eval]] = []
         for rule, evals in results:
             seen = {e.key: e for e in evals}
             for id_, entry in list(self.active.items()):
@@ -66,14 +74,51 @@ class AlertManager:
                 if ev is None or ev.value is False:
                     out.append(self._clear(id_, now, ev))
                 elif ev.value is True:
-                    out.extend(self._maybe_repeat_or_escalate(rule, entry, now))
-            for ev in evals:
-                if ev.value is True and f"{rule.id}|{ev.key}" not in self.active:
-                    raised = self._maybe_raise(rule, ev, ctx, now)
-                    if raised:
-                        out.append(raised)
-        out.extend(self._apply_suppression(now))
+                    updates = self._maybe_repeat_or_escalate(rule, entry, now)
+                    out.extend(updates)
+                    due += [id_] * bool(updates)
+            candidates += [
+                (rule, ev)
+                for ev in evals
+                if ev.value is True and f"{rule.id}|{ev.key}" not in self.active
+            ]
+        # sorted() is stable: equal priorities keep rule order.
+        for rule, ev in sorted(candidates, key=lambda c: -c[0].audio_priority):
+            raised = self._maybe_raise(rule, ev, ctx, now)
+            if raised:
+                out.append(raised)
+                due.append(f"{rule.id}|{ev.key}")
+        suppression = self._apply_suppression(now)
+        out.extend(suppression)
+        due += [self._id_of(a) for _, a in suppression if not a["suppressed"]]
+        self.nudge_due = [
+            i
+            for i in dict.fromkeys(due)
+            if i in self.active and not self.active[i]["alert"]["suppressed"]
+        ]
         return out
+
+    def ack(self, alert_id: str, by: str | None, now: datetime) -> tuple[str, dict] | None:
+        """Acknowledge an active alert. Ack is not clear: the alert stays active (and a
+        FULLSCREEN CRITICAL stays on screen) until its condition is definitively false."""
+        for entry in self.active.values():
+            alert = entry["alert"]
+            if alert["alert_id"] == alert_id:
+                alert["acknowledged_at"], alert["ack_by"] = to_site_iso(now), by
+                jlog(
+                    log,
+                    logging.INFO,
+                    "alert_acked",
+                    rule_id=alert["rule_id"],
+                    alert_id=alert_id,
+                    ack_by=by,
+                    machine_id=alert["machine_id"],
+                )
+                return "ACKED", alert
+        return None
+
+    def _id_of(self, alert: dict) -> str:
+        return next(i for i, e in self.active.items() if e["alert"] is alert)
 
     def active_records(self) -> list[dict]:
         return [e["alert"] for e in self.active.values()]

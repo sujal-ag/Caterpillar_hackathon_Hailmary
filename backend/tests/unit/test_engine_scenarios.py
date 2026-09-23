@@ -18,13 +18,17 @@ from common.db.writer import DbWriter
 from common.timeutil import parse_iso
 from edge.bus import MemoryBus
 from edge.engine.supervisor import EngineRunner, load_snapshot, persist
-from tests.engine_support import SCENARIOS, Run, load, make_engine
+from tests.engine_support import ENGINE_FIXTURES, FIXTURES, SCENARIOS, Run, load, make_engine
 from tools import eval_rules, seed
 from tools.fake_machine import generate
 
-SPECS = Path(__file__).resolve().parents[1] / "fixtures" / "specs"
+SPECS = FIXTURES / "specs"
 SCHEMAS = Path(__file__).resolve().parents[3] / "contracts" / "schemas"
-NAMES = sorted(p.stem for p in SCENARIOS.glob("*.jsonl"))
+# (spec, generated JSONL) for every fixture: replay scenarios + engine-only ones.
+FIXTURE_PAIRS = [(SPECS / f"{p.stem}.yaml", p) for p in sorted(SCENARIOS.glob("*.jsonl"))] + [
+    (ENGINE_FIXTURES / "specs" / f"{p.stem}.yaml", p)
+    for p in sorted(ENGINE_FIXTURES.glob("*.jsonl"))
+]
 
 
 def validator(name):
@@ -54,14 +58,28 @@ def run_persisted(name, writer) -> Run:
     )
 
 
-@pytest.mark.parametrize("name", NAMES)
-def test_scenario_fixture_regenerates_from_spec(name):
-    spec = yaml.safe_load((SPECS / f"{name}.yaml").read_text())
-    assert generate(spec) == load(name)
+@pytest.mark.parametrize("spec,jsonl", FIXTURE_PAIRS, ids=lambda p: p.stem)
+def test_fixture_regenerates_from_spec(spec, jsonl):
+    lines = [json.loads(s) for s in jsonl.read_text().splitlines()]
+    assert generate(yaml.safe_load(spec.read_text())) == lines
 
 
-def test_unsafe_exit_corrected(writer, db):
-    run = run_persisted("unsafe_exit_corrected", writer)
+def test_replay_scenarios_are_the_contract_names():
+    # User decision (Phase 4): the demo-script subset of contracts/sim_control.md.
+    assert sorted(p.stem for p in SCENARIOS.glob("*.jsonl")) == [
+        "belt_bypass",
+        "drive_into_zone",
+        "dtc_1638_16",
+        "proximity_intrusion",
+        "reset",
+        "safe_exit",
+        "tilt_excursion",
+        "unsafe_exit",
+    ]
+
+
+def test_unsafe_exit(writer, db):
+    run = run_persisted("unsafe_exit", writer)
     # R03 raised on the frame that makes intent true (door opens at t=63, belt already off).
     ((t_r03, _, r03),) = run.alerts("R03", "RAISED")
     assert t_r03 == 63
@@ -129,8 +147,8 @@ def test_belt_bypass_escalated_p0(writer, db):
         assert s.get(SafetyAlert, r07["alert_id"]).escalated
 
 
-def test_tilt_caution_then_critical_suppresses(writer):
-    run = run_persisted("tilt", writer)
+def test_tilt_excursion_caution_then_critical_suppresses(writer):
+    run = run_persisted("tilt_excursion", writer)  # roll 11 deg at 10 s, 17 deg at 20 s
     assert [t for t, _, _ in run.alerts("R10", "RAISED")] == [10]
     assert [t for t, _, _ in run.alerts("R11", "RAISED")] == [20]
     ((t, _, sup),) = [x for x in run.alerts("R10", "UPDATED") if x[2]["suppressed"]]
@@ -191,7 +209,7 @@ async def _drive(runner, bus, clock, lines, until=None):
 
 
 def test_runner_publishes_contract_payloads(writer):
-    lines = load("unsafe_exit_corrected")
+    lines = load("unsafe_exit")
 
     async def main():
         bus, clock, seen = MemoryBus(), Clock(), asyncio.Queue()
@@ -227,7 +245,7 @@ def test_runner_publishes_contract_payloads(writer):
 
 
 def test_crash_mid_unsafe_exit_restarts_and_rehydrates(writer, db):
-    lines = load("unsafe_exit_corrected")
+    lines = load("unsafe_exit")
     crash_ts = "2026-10-14T07:01:06.000+05:30"  # 3 s into the unsafe exit, R03 active
     crashed = {"done": False}
 

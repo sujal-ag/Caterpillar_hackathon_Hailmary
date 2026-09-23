@@ -4,6 +4,62 @@ One entry per phase (plan.md §0 rule 3): what was built, gate results, deviatio
 
 ---
 
+## Phase 4 — Nudges, WebSocket bridge, core REST → CP1 ✅ except the tablet demo (2026-09-24)
+
+### Built
+- **Config** `common/config.py` (`Settings`, pydantic-settings). Every host, port, secret, path and interval comes from env; each one is documented in `infra/.env.example`. The site and machines come from the DB (`EDGE_SITE_ID` / `EDGE_MACHINE_IDS` narrow it), thresholds from `machine_model` rows, the DTC catalogue from `diagnostic_code` rows, rules/tones/checklist order from `rules.yaml`, and the scenario list from a directory listing. The seed, rules and eval tools read `DATA_DIR`/`CONTRACTS_DIR`.
+- **Runtime** `edge/runtime.py` + `create_app()` in `edge/main.py`. The lifespan does: DB (`create_all` or idempotent seed) → `DbWriter` → one `EngineRunner` per machine (rehydrated from `engine_snapshot`) → `MqttBus` → site-level env recorder (stores `environment_obs` once per site; deferred from Phase 3) → sync-status publisher.
+- **Bus/broadcast**: `MqttBus` (aiomqtt) with a reconnect loop, re-subscribe on reconnect, and counters for dropped messages in and out. `edge/broadcast.py` fans each engine step out to WS clients (per-client filter; a bounded queue closes the socket on overflow so the client re-snapshots, I6) and to MQTT per `topics.md`.
+- **Nudges** `edge/nudge/generator.py`: alert → `nudge.v1`. Display is per rule (or the per-raise override, e.g. R05's degraded-seat BANNER). The tone comes from `policy.tone_patterns`. No voice clip or tone when the budget dropped AUDIO. The Exit Guard `checklist` follows the new `exit_checks.checklist_order`, filtered to the machine's own checks (the loader adds PARK_BRAKE_OFF). `AlertManager.nudge_due` covers raises, repeats, escalations and un-suppression, never clears, acks or suppressed alerts.
+- **Audio priority** (user decision): optional `audio_priority` per rule; raises on the same tick are budgeted in priority order. R06 = 1, so "steps may be slippery" now wins the voice slot over R04 (Phase 3 open item closed).
+- **Auth** `edge/api/auth.py`: `/auth/login` (badge = employee_code, bcrypt PIN, HS256 JWT with `sub`/`role`/`machine_id`/`exp`). New `operator.role` column; `SCHEMA_VERSION` 2, and an older DB is refused with a clear message. `SUP001` = admin (user decision). An operator token bound to a machine sees only that machine. `AUTH_DISABLED` (default false in compose) makes every request admin, is logged at WARNING and is reported in `/system/status`.
+- **REST**: `/state/current`, `/alerts/{id}/ack` (ack ≠ clear; 404 unknown / 409 inactive; goes through `EngineRunner.call()` so the engine keeps a single owner), `/alerts/{id}/why`, `/sim/scenarios`, `/sim/scenario`, `/sim/stop`, `/system/status`, `/health`.
+- **WS** `edge/ws/live.py`: `/ws/live`, `/ws/site` (supervisor+). Snapshot on connect (subscribe first, so there are no gaps), a ping task every `WS_PING_S`, and a per-client telemetry throttle. Close codes 4401/4403/4404/1013.
+- **Replay mode** `edge/sim.py`: plays `SIM_SCENARIOS_DIR/{name}.jsonl` onto the bus (the real ingest path), re-timed to now, re-targeted to this site and optionally another machine. A hold at the fixture's own frame rate keeps the end state; `/sim/stop` ends it.
+- **Fixtures** (user decisions): the contract names in `tests/fixtures/scenarios/` are `reset`, `unsafe_exit` (the old `unsafe_exit_corrected`), `proximity_intrusion`, `drive_into_zone`, `dtc_1638_16` (new), plus `safe_exit`, `belt_bypass` and `tilt_excursion`. The last was rewritten to the contract: roll 11° → 17° for 40 s. Phase-3-only fixtures moved to `tests/fixtures/engine/`.
+- **Tools**: `tools/ws_probe.py`, `tools/latency_probe.py`, `common/replay.py` (scheduling shared with `tools/replay.py`), and `gen_ts.sh` now also emits `ts/openapi.d.ts` (openapi-typescript 7.13.0).
+- **Infra/docs**: compose passes the edge env (`AUTH_DISABLED` default false, `SIM_MODE` default replay, seed on start, `edge-data` volume). `Dockerfile.edge` copies `data/` and binds 0.0.0.0. The new `docs/RUNBOOK.md` covers the tablet URL `http://<laptop-LAN-IP>:8000`, `CORS_ORIGINS` for P3's dev/PWA origin, auth, scenarios and the probes. `ws.md` documents the message order within one engine step.
+
+### Gate results
+| Gate | Result |
+|---|---|
+| `ws_probe --scenario unsafe_exit --expect nudge:R03:FULLSCREEN --expect state:exit_state=SAFE --timeout 30` (replay mode, compose stack) | ✅ R03 FULLSCREEN at +15.8 s, exit_state SAFE at +19.3 s. Needs `--speed 4`: the fixture's intent is at t=63 s, so at 1× it can't fit in 30 s |
+| Latency p95 < 300 ms, 50 runs | ✅ `latency_probe --runs 50`: **p50 13.1 ms · p95 15.7 ms · max 21.1 ms** (MQTT publish → WS nudge, compose on this laptop; not yet on the demo laptop) |
+| `/alerts/{id}/why` for R03 | ✅ rule id, name, hld_ref, inputs (exit_state UNSAFE, hyd UNLOCKED …), thresholds (`test_api.py`) |
+| Ack sets `acknowledged_at`; FULLSCREEN CRITICAL stays until its condition clears | ✅ ack → acknowledged_at + ack_by, still active; the reconnect snapshot shows it acked + active; it clears on correction; acking again → 409 |
+| WS reconnect mid-scenario → snapshot = current truth | ✅ exit_state UNSAFE, class UNSAFE, R03 active + acked |
+| openapi.json + TS types | ✅ exported; `gen_ts.sh` → `TS types OK: 20 files` (`tsc --strict`) |
+| CP1 demo on the real tablet with P3 | ⏳ team step, not done yet (RUNBOOK has the LAN/CORS setup) |
+| MQTT reconnect (added after the gate review) | ✅ `RUN_BROKER_RESTART=1 pytest tests/integration -k reconnect`: broker container restarted under a connected `MqttBus` → disconnect noticed, publishes while down counted in `dropped_out` (no exception), reconnect + re-subscribe, delivery resumes. The live edge-api went through the same restart: `mqtt_disconnected` → `mqtt_connected` in 2 s, `/system/status` mqtt.connected true, and `ws_probe` unsafe_exit passed again afterwards |
+| Full suite | ✅ 187 passed, 1 skipped (eval_rules: no P1 traces). Includes 2 integration tests against the real Mosquitto. ruff check + format clean |
+
+### Bugs found and fixed during the gate
+1. **Latency probe ran ~50 min without finishing (tool bug, found live).** Every wait reset its timeout on each incoming message, and there was no overall deadline, so a run that couldn't complete looped forever. It couldn't complete because the `reset` scenario's hold frames were publishing raw frames for EXC001 at 1 Hz at the same time. Interleaved with the probe's frames, the 500 ms leading-edge debounce suppressed or reverted the probe's switch changes, so no exit intent rose and no R03 was raised. Reproduced offline with the real engine: hold interleaved at 6 phase offsets → 1 of 6 triggers produced no R03 each time; no other publisher → 50/50. The probe also stopped reading at the nudge, and the edge emits the step's `state` right after it, so its "exit closed" check used stale state. **Fix:** hard deadline on every wait (exit 2 with a reason); a reader task consumes the socket continuously; the edge's `telemetry` echo (same ts) confirms each probe frame was processed; the probe refuses to start while a replay scenario runs (`--stop-replay`); the raw topic must be quiet for `data_stale_s` first; it aborts the moment a foreign raw frame appears (verified live: a scenario started mid-run → exit 2 within 1 s, naming the topic). New `POST /sim/stop`.
+2. **JWT leaked into container logs.** uvicorn logs the WS URL, including `?token=`. Now `common/log.RedactSecrets` on `uvicorn.access`/`uvicorn.error` masks it. Verified live: 0 tokens in the logs after the rebuild.
+3. **The edge couldn't shut down under load (Python 3.11).** `asyncio.wait_for(queue.get(), t)` can swallow a cancellation that races a completing `get()`. A runner fed continuously then ignored cancel and hung the lifespan shutdown (found via a hanging test). `asyncio.timeout` on 3.11 has the mirror bug (a stray pending cancel). **Fix:** there are no timeouts on queue reads any more: ticks and pings are queued by small ticker tasks instead. The WS handler cancels its child tasks without awaiting them inside a cancellation, so it doesn't re-deliver the cancel past the server's scope.
+4. Replay hold at `speed` > 1 was flooding the bus (hold spacing divided by speed). The hold now runs at the fixture's real frame rate.
+
+### Decisions / deviations
+1. Roles, scenario set, `tilt_excursion` content, R06 audio priority, LAN/CORS/AUTH defaults: user decisions (above).
+2. `POST /sim/stop` is an edge addition, replay mode only (proxy → 409, since P1's control API has no stop). Recorded in `rest.md` and `sim_control.md`.
+3. `sync_status` reports `online:false`, `last_success_at:null` and the real `queue_depth` until the Phase 9 agent exists; `models` report `UNAVAILABLE` until Phase 6 (`edge/ml/adapter.py`); `eta` in the snapshot is null. All reported as-is rather than faked.
+4. Access log redaction covers `token=` / `access_token=` query values only.
+5. The dev `infra/.env` (gitignored) was created with a random `EDGE_JWT_SECRET` for the gate run.
+
+### How much the probe hang affected the application
+- **Product path: no impact.** Ingest, rules, nudges, WS, REST and persistence were correct throughout. Every probe run that did complete measured about 10–21 ms. The hang was in the measuring tool.
+- **Real constraint it exposed:** one publisher per machine. If P1's simulator and a replay (or `tools/replay.py`) drive the same machine, their frames interleave and the engine sees neither machine correctly. Now documented in `sim_control.md` and the RUNBOOK, and prevented for the probe. The edge itself doesn't detect a second publisher (MQTT carries no publisher identity). For the demo: only one of `SIM_MODE=replay` or P1's sim per machine.
+- **Real bugs it surfaced:** the token leak (security) and the 3.11 cancellation hang (shutdown/restart reliability, and the D18 container-restart path). Both fixed.
+
+### Open items
+- CP1 on the real tablet with P3 over the travel-router LAN.
+- Rerun `latency_probe` on the demo laptop and record the numbers here.
+- Not automated yet: the `ws_probe` gate as a test against a running edge; the WS telemetry throttle, ping and overflow-close paths (no dedicated tests).
+- Teammate review: `/sim/stop`, the message order note in `ws.md`, the new contract-named fixtures (P1 may replace them with sim recordings).
+- Not committed (user asked not to commit or push).
+
+---
+
 ## Phase 3 — Operator State Engine + Risk Engine ✅ (2026-09-23)
 
 ### Built

@@ -1,0 +1,51 @@
+# sim_control.md drive_into_zone: TRAVEL with x/y moving (3 km/h on heading 211 deg from
+# x=184.2, y=92.7). Which zone it enters depends on the hazard pins on the site; R14/R15
+# fire once Phase 5 geofencing is in place.
+# Replay scenario (contracts/sim_control.md; SIM_MODE=replay). Regenerate:
+#   python tools/fake_machine.py tests/fixtures/specs/drive_into_zone.yaml -o tests/fixtures/scenarios/drive_into_zone.jsonl
+site_id: SITE-PUN-01
+machine_id: EXC001
+start: "2026-10-14T07:00:00.000+05:30"
+duration_s: 60
+initial:
+  fuel_used_total_l: 15240.6
+  fuel_level_pct: 58.4
+  def_level_pct: 71.0
+  engine_hours: 1524.62
+  coolant_temp_c: 86
+  hyd_oil_temp_c: 62
+  battery_v: 27.1
+  seatbelt: FASTENED
+  parking_brake: "ON"
+  transmission_gear: 0
+  boom_angle_deg: 38.5
+  stick_angle_deg: -62.0
+  bucket_angle_deg: -15.0
+  bucket_height_m: 2.1
+  boom_tip_height_m: 6.2
+  pass_count: 1843
+  load_count: 212
+  idle_hours_total: 581.3
+  pitch_deg: 3.2
+  roll_deg: 1.1
+  x_m: 184.2
+  y_m: 92.7
+  heading_deg: 211
+  seat_occupied: true
+  door_open: false
+  hyd_lockout: UNLOCKED
+  lift_mode: false
+  power_mode: SMART
+  attachment_id: ATT-GP-119
+  coupler_lock: LOCKED
+  cab_temp_c: 27.5
+  cab_ac_on: true
+  articulation_deg: null
+timeline:
+  - at: 0
+    mode: IDLE
+    env: {temp_c: 25.0, rh_pct: 50, precip_mm_h: 0.0, rain_flag: false, wind_kmh: 6, gust_kmh: 11, visibility_m: 8000, ground_condition: DRY}
+  - at: 5
+    mode: TRAVEL
+  - at: 55
+    mode: IDLE

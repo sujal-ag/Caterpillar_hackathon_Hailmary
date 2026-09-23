@@ -1,11 +1,11 @@
-# Pitch 18 deg at t=10 (> 15 caution) -> R10; 27 deg at 20 (> 25 critical) -> R11, which
-# suppresses R10 (same TILT subject); level again at 30 -> both clear.
+# SPN 110 FMI 0 (coolant temperature, most severe; catalogue action_class STOP) goes active
+# at t=10 -> R16 CRITICAL; clears at 40.
 # Phase 3 scenario fixture (plan.md Phase 3 gate). Regenerate:
-#   python tools/fake_machine.py tests/fixtures/specs/tilt.yaml -o tests/fixtures/scenarios/tilt.jsonl
+#   python tools/fake_machine.py tests/fixtures/engine/specs/dtc_stop.yaml -o tests/fixtures/engine/dtc_stop.jsonl
 site_id: SITE-PUN-01
 machine_id: EXC001
 start: "2026-10-14T07:00:00.000+05:30"
-duration_s: 40
+duration_s: 50
 initial:
   fuel_used_total_l: 15240.6
   fuel_level_pct: 58.4
@@ -42,11 +42,9 @@ initial:
   articulation_deg: null
 timeline:
   - at: 0
-    mode: IDLE
+    mode: WORK
     env: {temp_c: 25.0, rh_pct: 50, precip_mm_h: 0.0, rain_flag: false, wind_kmh: 6, gust_kmh: 11, visibility_m: 8000, ground_condition: DRY}
   - at: 10
-    set: {pitch_deg: 18.0}
-  - at: 20
-    set: {pitch_deg: 27.0}
-  - at: 30
-    set: {pitch_deg: 3.2}
+    dtc: {spn: 110, fmi: 0, active: true}
+  - at: 40
+    dtc: {spn: 110, fmi: 0, active: false}

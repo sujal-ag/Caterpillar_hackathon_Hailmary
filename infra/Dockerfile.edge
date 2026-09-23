@@ -6,8 +6,10 @@ WORKDIR /app/backend
 COPY backend/requirements.lock .
 RUN pip install --no-cache-dir -r requirements.lock
 COPY contracts/ /app/contracts/
+COPY data/ /app/data/
 COPY backend/ .
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"
+# 0.0.0.0: the tablet reaches edge-api over the travel-router LAN (docs/RUNBOOK.md).
 CMD ["uvicorn", "edge.main:app", "--host", "0.0.0.0", "--port", "8000"]

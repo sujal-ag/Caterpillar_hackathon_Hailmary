@@ -47,6 +47,7 @@ Conventions:
 | POST | `/fatigue/samples` | In-shift fatigue samples (stretch, D5) | operator | 6 |
 | POST | `/sim/scenario` | `{name, machine_id?}` proxy to the sim, or replay (`sim_control.md`) | admin | 4 |
 | GET | `/sim/scenarios` | Scenario names | admin | 4 |
+| POST | `/sim/stop` | Replay mode: stop the running scenario and its hold frames → `{ok, stopped}`. Proxy mode → `409` (the sim control API has no stop). Edge addition, Phase 4 | admin | 4 |
 
 ## Supervisor / fleet (mounted on edge **and** cloud, Phase 10)
 

@@ -6,10 +6,13 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[3]
-RULES_PATH = ROOT / "contracts" / "rules.yaml"
-SEED_DIR = ROOT / "data" / "seed"
-CATALOGUE_PATH = ROOT / "data" / "catalogue" / "diagnostic_codes.yaml"
+from common.config import REPO_ROOT, Settings
+
+_SETTINGS = Settings()  # CONTRACTS_DIR / DATA_DIR env vars (infra/.env.example)
+ROOT = REPO_ROOT
+RULES_PATH = _SETTINGS.contracts_dir / "rules.yaml"
+SEED_DIR = _SETTINGS.data_dir / "seed"
+CATALOGUE_PATH = _SETTINGS.data_dir / "catalogue" / "diagnostic_codes.yaml"
 
 
 @dataclass(frozen=True)
@@ -34,6 +37,7 @@ class Rule:
     lesson_trigger: bool
     enabled: bool
     hld_ref: str
+    audio_priority: int = 0  # higher wins the audio budget when raised on the same tick
 
 
 _RULE_FIELDS = {f.name for f in fields(Rule)}
@@ -45,6 +49,7 @@ class RuleSet:
     predicates: dict
     exit_checks: dict
     policy: dict
+    version: int = 0
 
     def by_id(self, rule_id: str) -> Rule:
         return next(r for r in self.rules if r.id == rule_id)
@@ -53,7 +58,9 @@ class RuleSet:
 def load_rules(path: Path = RULES_PATH) -> RuleSet:
     doc = yaml.safe_load(path.read_text())
     rules = tuple(Rule(**{k: v for k, v in r.items() if k in _RULE_FIELDS}) for r in doc["rules"])
-    return RuleSet(rules, doc["predicates"], doc["exit_checks"], doc["policy"])
+    return RuleSet(
+        rules, doc["predicates"], doc["exit_checks"], doc["policy"], doc.get("version", 0)
+    )
 
 
 def load_machine_models(path: Path = SEED_DIR / "machine_models.yaml") -> dict[str, dict]:

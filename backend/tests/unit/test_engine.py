@@ -86,7 +86,7 @@ def test_seat_and_door_unknown_belt_off_counts_as_intent():
 
 
 def test_unknown_wet_never_prompts_three_point_contact():
-    lines = [ln for ln in load("unsafe_exit_corrected") if not ln["topic"].endswith("/env")]
+    lines = [ln for ln in load("unsafe_exit") if not ln["topic"].endswith("/env")]
     run = Run(make_engine(), lines)
     assert run.alerts("R06") == []
     assert all(not row["three_point_prompted"] for _, out, _ in run.steps for row in out.exit_rows)
@@ -215,7 +215,7 @@ def test_rule_raising_is_disabled_and_logged_others_keep_running(monkeypatch, ca
 
     monkeypatch.setitem(registry.PREDICATES, "tilt_caution", boom)
     caplog.set_level(logging.ERROR, logger="edge.engine")
-    run = Run(make_engine(), load("unsafe_exit_corrected"))
+    run = Run(make_engine(), load("unsafe_exit"))
     assert "R10" in run.engine.metrics()["disabled_rules"]
     assert len(run.alerts("R03", "RAISED")) == 1
     logged = [json.loads(r.getMessage()) for r in caplog.records]
@@ -244,7 +244,7 @@ def test_stretch_rules_never_fire_while_disabled():
 
 
 def test_snapshot_round_trip_mid_exit_continues_identically():
-    lines = load("unsafe_exit_corrected")
+    lines = load("unsafe_exit")
     cut = next(
         i for i, ln in enumerate(lines) if ln["payload"]["ts"].endswith("07:01:05.000+05:30")
     )
@@ -266,7 +266,7 @@ def test_snapshot_round_trip_mid_exit_continues_identically():
 
 def test_sim_label_never_reaches_rules_or_state():
     engine = make_engine()
-    frames = [ln for ln in load("unsafe_exit_corrected") if ln["topic"].endswith("/raw")]
+    frames = [ln for ln in load("unsafe_exit") if ln["topic"].endswith("/raw")]
     labelled = next(ln for ln in frames if ln["payload"]["sim_label"])
     out = step(engine, labelled)
     assert "sim_label" not in out.telemetry and "sim_label" not in json.dumps(engine.snapshot())

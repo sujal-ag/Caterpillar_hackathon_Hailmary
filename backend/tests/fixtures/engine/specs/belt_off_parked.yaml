@@ -1,11 +1,11 @@
-# SPN 110 FMI 0 (coolant temperature, most severe; catalogue action_class STOP) goes active
-# at t=10 -> R16 CRITICAL; clears at 40.
+# Parked, hydraulics locked, operator seated, belt unfastened at t=10 and left off:
+# R02 INFO (silent chip) at 10, escalates to CAUTION + soft chime at 310. Never active -> no R01.
 # Phase 3 scenario fixture (plan.md Phase 3 gate). Regenerate:
-#   python tools/fake_machine.py tests/fixtures/specs/dtc_stop.yaml -o tests/fixtures/scenarios/dtc_stop.jsonl
+#   python tools/fake_machine.py tests/fixtures/engine/specs/belt_off_parked.yaml -o tests/fixtures/engine/belt_off_parked.jsonl
 site_id: SITE-PUN-01
 machine_id: EXC001
 start: "2026-10-14T07:00:00.000+05:30"
-duration_s: 50
+duration_s: 330
 initial:
   fuel_used_total_l: 15240.6
   fuel_level_pct: 58.4
@@ -42,9 +42,8 @@ initial:
   articulation_deg: null
 timeline:
   - at: 0
-    mode: WORK
+    mode: IDLE
+    set: {bucket_height_m: 0.1, hyd_lockout: LOCKED}
     env: {temp_c: 25.0, rh_pct: 50, precip_mm_h: 0.0, rain_flag: false, wind_kmh: 6, gust_kmh: 11, visibility_m: 8000, ground_condition: DRY}
   - at: 10
-    dtc: {spn: 110, fmi: 0, active: true}
-  - at: 40
-    dtc: {spn: 110, fmi: 0, active: false}
+    set: {seatbelt: UNFASTENED}

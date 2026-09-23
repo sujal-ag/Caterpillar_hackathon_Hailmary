@@ -1,12 +1,14 @@
 """Engine task + watchdog (plan.md Phase 3 item 7, D18; HLD §4.4 failure mode).
 
 `EngineRunner` owns one `MachineEngine` on a bus: routes raw/dtc/env/proximity messages to
-it, ticks it every second, persists each `Out` through the single `DbWriter` (entity +
-outbox in one unit of work, I7), publishes state/alert/event, and snapshots the engine to
+it, ticks it every `tick_s`, persists each `Out` through the single `DbWriter` (entity +
+outbox in one unit of work, I7), publishes telemetry/state/alert/nudge/event/health through
+the `Broadcaster` (WS + MQTT), and snapshots the engine to
 `engine_snapshot` every second and on every change. If processing raises, the runner logs,
 rebuilds the engine from the last snapshot and carries on — in-process, well under the 2 s
 D18 target. Rule-level errors never get here: `MachineEngine.evaluate` disables just that
-rule. MQTT publishing proper, nudges and the FastAPI lifespan are Phase 4.
+rule. The engine is only ever touched from this runner's task: API calls that change it
+(ack) go through `call()`, which queues the function onto the same loop.
 """
 
 import asyncio
@@ -22,10 +24,13 @@ from common.db.models import EngineSnapshot, SimLabelLog
 from common.db.writer import DbWriter
 from common.log import jlog
 from common.timeutil import MonotonicClock
+from edge.broadcast import Broadcaster
 from edge.bus import Bus
 from edge.engine.machine import MachineEngine, Out
+from edge.ml.adapter import status as ml_status
 
 log = logging.getLogger("edge.engine.supervisor")
+_CALL = object()  # queue marker for EngineRunner.call
 
 
 def persist(session: Session, out: Out) -> None:
@@ -61,6 +66,7 @@ class EngineRunner:
         clock: Callable[[], datetime] | None = None,
         snapshot: dict | None = None,
         tick_s: float = 1.0,
+        sink: Broadcaster | None = None,
     ):
         self.make_engine, self.bus, self.writer = make_engine, bus, writer
         self.clock = clock or MonotonicClock()
@@ -74,6 +80,9 @@ class EngineRunner:
         self.handled = 0  # bus messages fully processed (or lost to a crash)
         self.queue: asyncio.Queue = asyncio.Queue()
         ctx = self.engine.ctx
+        self.sink = sink or Broadcaster(bus, ctx.site_id)
+        self._last_health: dict | None = None
+        self._tick_pending = False
         self._prefix = f"cat/{ctx.site_id}/{ctx.machine_id}"
         bus.subscribe(f"{self._prefix}/raw", self.queue)
         bus.subscribe(f"{self._prefix}/dtc", self.queue)
@@ -81,6 +90,13 @@ class EngineRunner:
         bus.subscribe(f"cat/{ctx.site_id}/env", self.queue)
 
     async def run(self) -> None:
+        ticker = asyncio.create_task(self._ticker())
+        try:
+            await self._supervise()
+        finally:
+            ticker.cancel()
+
+    async def _supervise(self) -> None:
         while True:
             try:
                 await self._loop()
@@ -110,18 +126,36 @@ class EngineRunner:
                     restarts=self.restarts,
                 )
 
-    async def _loop(self) -> None:
-        next_tick = time.monotonic() + self.tick_s
-        last_snap = time.monotonic()
+    async def call(self, fn: Callable[[MachineEngine, datetime], Out | None]) -> Out | None:
+        """Run `fn(engine, now)` on the engine's own task; its Out is persisted and
+        broadcast like any other step. Returns that Out (None = nothing changed)."""
+        fut = asyncio.get_running_loop().create_future()
+        await self.queue.put((_CALL, (fn, fut)))
+        return await fut
+
+    async def _ticker(self) -> None:
+        """Queue a timer tick every `tick_s` (at most one waiting). Ticks go through the same
+        queue as messages so the loop never needs a timeout on `get()` — on Python 3.11 both
+        `wait_for` and `asyncio.timeout` can lose or leak a cancellation that races a
+        completing get(), which left the runner unstoppable at shutdown."""
         while True:
-            timeout = max(0.0, next_tick - time.monotonic())
-            try:
-                topic, payload = await asyncio.wait_for(self.queue.get(), timeout)
-            except TimeoutError:
-                topic, payload = None, None
-            out = self._dispatch(topic, payload)
+            await asyncio.sleep(self.tick_s)
+            if not self._tick_pending:
+                self._tick_pending = True
+                self.queue.put_nowait((None, None))
+
+    async def _loop(self) -> None:
+        last_snap = time.monotonic()
+        if self.engine.state is None:  # evaluate once so a snapshot never lacks a state
+            await self._emit(self.engine.tick(self.clock()))
+        while True:
+            topic, payload = await self.queue.get()
+            if topic is _CALL:
+                await self._run_call(*payload)
+                continue
             if topic is None:
-                next_tick = time.monotonic() + self.tick_s
+                self._tick_pending = False
+            out = self._dispatch(topic, payload)
             if out is not None:
                 await self._emit(out)
                 if out.changed() or time.monotonic() - last_snap >= self.tick_s:
@@ -129,6 +163,19 @@ class EngineRunner:
                     last_snap = time.monotonic()
             if topic is not None:
                 self.handled += 1
+
+    async def _run_call(self, fn, fut) -> None:
+        try:
+            out = fn(self.engine, self.clock())
+            if out is not None:
+                await self._emit(out)
+                await self._snapshot()
+        except Exception as exc:  # noqa: BLE001 - the caller gets the error; engine keeps running
+            if not fut.done():
+                fut.set_exception(exc)
+            return
+        if not fut.done():
+            fut.set_result(out)
 
     def _dispatch(self, topic: str | None, payload: dict | None) -> Out | None:
         now, e = self.clock(), self.engine
@@ -148,17 +195,29 @@ class EngineRunner:
         if out.telemetry is not None:
             self.writer.submit_telemetry(out.telemetry)
         await asyncio.wrap_future(self.writer.submit(lambda s: persist(s, out)))
+        mid, pub = self.engine.machine_id, self.sink.publish
+        if out.telemetry_v1 is not None:
+            await pub(mid, "telemetry", out.telemetry_v1)
         for event in out.events:
-            await self.bus.publish(
-                f"{self._prefix}/event", {"schema": "event.v1", **event.model_dump()}
-            )
+            await pub(mid, "event", {"schema": "event.v1", **event.model_dump()})
         for action, alert in out.alerts:
-            await self.bus.publish(
-                f"{self._prefix}/alert",
+            await pub(
+                mid,
+                "alert",
                 {"schema": "alert.v1", "ts": alert["ts"], "action": action, "alert": dict(alert)},
             )
+        for nudge in out.nudges:
+            await pub(mid, "nudge", nudge)
         if out.state is not None:
-            await self.bus.publish(f"{self._prefix}/state", out.state)
+            await pub(mid, "state", out.state)
+            health = out.state["sensor_health"]
+            if health != self._last_health:
+                self._last_health = health
+                await pub(
+                    mid,
+                    "health",
+                    {"sensor_health": health, "models": ml_status(), "as_of": out.state["ts"]},
+                )
 
     async def _snapshot(self) -> None:
         snap = self.engine.snapshot()

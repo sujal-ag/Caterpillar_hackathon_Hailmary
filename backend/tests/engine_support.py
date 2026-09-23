@@ -12,7 +12,9 @@ from edge.engine.rules import load_catalogue, load_machine_models, load_rules
 from edge.ingest.dtc import build_catalogue_index
 from tools.fake_machine import generate
 
-SCENARIOS = Path(__file__).resolve().parent / "fixtures" / "scenarios"
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+SCENARIOS = FIXTURES / "scenarios"  # contract-named replay scenarios (SIM_MODE=replay)
+ENGINE_FIXTURES = FIXTURES / "engine"  # Phase 3 engine-only fixtures
 RULESET = load_rules()
 MODELS = load_machine_models()
 CATALOGUE = build_catalogue_index(load_catalogue())
@@ -76,7 +78,10 @@ def inline(timeline: list[dict], duration_s: int = 30, drop: tuple = (), **initi
 
 
 def load(name: str) -> list[dict]:
-    return [json.loads(s) for s in (SCENARIOS / f"{name}.jsonl").read_text().splitlines()]
+    path = SCENARIOS / f"{name}.jsonl"
+    if not path.exists():
+        path = ENGINE_FIXTURES / f"{name}.jsonl"
+    return [json.loads(s) for s in path.read_text().splitlines()]
 
 
 def step(engine: MachineEngine, line: dict) -> Out:

@@ -21,11 +21,22 @@ services:
   edge-api:
     build: {context: .., dockerfile: infra/Dockerfile.edge}
     image: operator-companion/edge:dev
+    env_file:
+      - path: .env
+        required: false
     environment:
       MQTT_HOST: mosquitto
       MQTT_PORT: "1883"
       SITE_TZ: ${SITE_TZ:-Asia/Kolkata}
-    ports: ["8000:8000"]
+      EDGE_DB_PATH: /data/edge.db
+      EDGE_JWT_SECRET: ${EDGE_JWT_SECRET:-}
+      AUTH_DISABLED: ${AUTH_DISABLED:-false}     # never true outside P3 dev (logged loudly)
+      EDGE_SEED_ON_START: ${EDGE_SEED_ON_START:-true}
+      SIM_MODE: ${SIM_MODE:-replay}
+      SIM_CONTROL_URL: ${SIM_CONTROL_URL:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+    volumes: [edge-data:/data]
+    ports: ["8000:8000"]            # 0.0.0.0: reachable from the tablet on the LAN (RUNBOOK)
     depends_on:
       mosquitto: {condition: service_healthy}
     restart: unless-stopped
@@ -80,6 +91,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  edge-data:
   mosquitto-data:
   ollama-models:
   pg-data:

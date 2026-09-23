@@ -34,13 +34,16 @@ from edge.ingest.idle import IdleTracker
 from edge.ingest.normalise import normalise, validate_raw
 from edge.ingest.stale import StaleTracker
 from edge.ingest.switches import SWITCH_NAMES, Debouncer
+from edge.ingest.telemetry import to_telemetry_v1
+from edge.nudge.generator import make_nudge
 
 log = logging.getLogger("edge.engine")
 
 
 @dataclass
 class Out:
-    telemetry: dict | None = None
+    telemetry: dict | None = None  # normalised row (telemetry_sample)
+    telemetry_v1: dict | None = None  # wire shape for MQTT/WS
     events: list[MachineEvent] = field(default_factory=list)
     alerts: list[tuple[str, dict]] = field(default_factory=list)
     exit_rows: list[dict] = field(default_factory=list)
@@ -48,6 +51,7 @@ class Out:
     dtc_occurrences: list[dict] = field(default_factory=list)
     env_obs: list[dict] = field(default_factory=list)
     sim_labels: list[dict] = field(default_factory=list)
+    nudges: list[dict] = field(default_factory=list)  # nudge.v1
     state: dict | None = None  # state.v1, only when it changed
 
     def changed(self) -> bool:
@@ -57,6 +61,7 @@ class Out:
             or self.exit_rows
             or self.idle_episodes
             or self.dtc_occurrences
+            or self.nudges
             or self.state
         )
 
@@ -157,6 +162,10 @@ class MachineEngine:
             )
         out.telemetry = t
         self.evaluate(now, out)
+        fresh = self.policy["proximity_fresh_s"]
+        out.telemetry_v1 = to_telemetry_v1(
+            t, (ctx.proximity_now(now, fresh)[0], ctx.fresh_proximity_msg(now, fresh))
+        )
         return out
 
     def on_dtc(self, frame: dict, now: datetime) -> Out:
@@ -238,7 +247,24 @@ class MachineEngine:
                     traceback=traceback.format_exc(),
                 )
         out.alerts.extend(self.alerts.process(results, ctx, now))
+        for id_ in self.alerts.nudge_due:
+            entry = self.alerts.active[id_]
+            out.nudges.append(
+                make_nudge(
+                    entry["alert"],
+                    entry,
+                    self.rules_by_id[entry["rule_id"]],
+                    self.ruleset,
+                    inp.checks,
+                    now,
+                )
+            )
         self._update_state(inp, now, out)
+
+    def ack(self, alert_id: str, by: str | None, now: datetime) -> Out | None:
+        """Operator ack (REST). None if the alert isn't active on this machine."""
+        action = self.alerts.ack(alert_id, by, now)
+        return None if action is None else Out(alerts=[action])
 
     def _update_state(self, inp: Inputs, now: datetime, out: Out) -> None:
         ctx = self.ctx

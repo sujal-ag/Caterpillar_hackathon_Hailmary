@@ -1,11 +1,12 @@
-# Parked, hydraulics locked, operator seated, belt unfastened at t=10 and left off:
-# R02 INFO (silent chip) at 10, escalates to CAUTION + soft chime at 310. Never active -> no R01.
-# Phase 3 scenario fixture (plan.md Phase 3 gate). Regenerate:
-#   python tools/fake_machine.py tests/fixtures/specs/belt_off_parked.yaml -o tests/fixtures/scenarios/belt_off_parked.jsonl
+# sim_control.md dtc_1638_16: dtc.v1 SPN 1638 FMI 16 active (hydraulic oil temperature
+# high; catalogue action_class MONITOR -> R17) with hydraulic oil at ~96 C (>= 95 C caution
+# -> R18). Stays active: `reset` clears it.
+# Replay scenario (contracts/sim_control.md; SIM_MODE=replay). Regenerate:
+#   python tools/fake_machine.py tests/fixtures/specs/dtc_1638_16.yaml -o tests/fixtures/scenarios/dtc_1638_16.jsonl
 site_id: SITE-PUN-01
 machine_id: EXC001
 start: "2026-10-14T07:00:00.000+05:30"
-duration_s: 330
+duration_s: 40
 initial:
   fuel_used_total_l: 15240.6
   fuel_level_pct: 58.4
@@ -42,8 +43,10 @@ initial:
   articulation_deg: null
 timeline:
   - at: 0
-    mode: IDLE
-    set: {bucket_height_m: 0.1, hyd_lockout: LOCKED}
+    mode: WORK
     env: {temp_c: 25.0, rh_pct: 50, precip_mm_h: 0.0, rain_flag: false, wind_kmh: 6, gust_kmh: 11, visibility_m: 8000, ground_condition: DRY}
   - at: 10
-    set: {seatbelt: UNFASTENED}
+    set: {hyd_oil_temp_c: 96.0}
+    label: DTC
+  - at: 10
+    dtc: {spn: 1638, fmi: 16, active: true}

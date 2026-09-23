@@ -119,6 +119,7 @@ class Operator(SQLModel, table=True):
     cert_expiry: str | None = None  # YYYY-MM-DD
     languages: list | None = _json_col()
     pin_hash: str  # bcrypt
+    role: str = "operator"  # operator | supervisor | admin (HLD §4.14; admin ⊇ supervisor)
     camera_consent: bool = False
     baseline_rt_ms: float | None = None
     baseline_blink_rate_pm: float | None = None
@@ -724,6 +725,12 @@ class SimLabelLog(SQLModel, table=True):
     machine_id: str
     ts: str
     sim_label: str
+
+
+# Bump when a table changes shape: create_all never alters an existing table, so an older
+# DB must be deleted and re-seeded (session.create_all refuses to run on one).
+# v2 (Phase 4): operator.role.
+SCHEMA_VERSION = 2
 
 
 class SchemaVersion(SQLModel, table=True):

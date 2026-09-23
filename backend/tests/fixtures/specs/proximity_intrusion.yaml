@@ -1,0 +1,109 @@
+# sim_control.md proximity_intrusion: person 2-6 m REAR on sim/proximity while swinging
+# (HLD §6.14). 6 m (5-9 s) -> R13; 2.5 m (10-19 s) -> R12 CRITICAL; 5 m (20-24 s) -> R13;
+# clear view from 25 s.
+# Replay scenario (contracts/sim_control.md; SIM_MODE=replay). Regenerate:
+#   python tools/fake_machine.py tests/fixtures/specs/proximity_intrusion.yaml -o tests/fixtures/scenarios/proximity_intrusion.jsonl
+site_id: SITE-PUN-01
+machine_id: EXC001
+start: "2026-10-14T07:00:00.000+05:30"
+duration_s: 35
+initial:
+  fuel_used_total_l: 15240.6
+  fuel_level_pct: 58.4
+  def_level_pct: 71.0
+  engine_hours: 1524.62
+  coolant_temp_c: 86
+  hyd_oil_temp_c: 62
+  battery_v: 27.1
+  seatbelt: FASTENED
+  parking_brake: "ON"
+  transmission_gear: 0
+  boom_angle_deg: 38.5
+  stick_angle_deg: -62.0
+  bucket_angle_deg: -15.0
+  bucket_height_m: 2.1
+  boom_tip_height_m: 6.2
+  pass_count: 1843
+  load_count: 212
+  idle_hours_total: 581.3
+  pitch_deg: 3.2
+  roll_deg: 1.1
+  x_m: 184.2
+  y_m: 92.7
+  heading_deg: 211
+  seat_occupied: true
+  door_open: false
+  hyd_lockout: UNLOCKED
+  lift_mode: false
+  power_mode: SMART
+  attachment_id: ATT-GP-119
+  coupler_lock: LOCKED
+  cab_temp_c: 27.5
+  cab_ac_on: true
+  articulation_deg: null
+timeline:
+  - at: 0
+    mode: WORK
+    env: {temp_c: 25.0, rh_pct: 50, precip_mm_h: 0.0, rain_flag: false, wind_kmh: 6, gust_kmh: 11, visibility_m: 8000, ground_condition: DRY}
+  - at: 5
+    label: PROXIMITY_INTRUSION
+    proximity: {min_dist_m: 6.0, sector: REAR, conf: 0.9}
+  - at: 6
+    proximity: {min_dist_m: 6.0, sector: REAR, conf: 0.9}
+  - at: 7
+    proximity: {min_dist_m: 6.0, sector: REAR, conf: 0.9}
+  - at: 8
+    proximity: {min_dist_m: 6.0, sector: REAR, conf: 0.9}
+  - at: 9
+    proximity: {min_dist_m: 6.0, sector: REAR, conf: 0.9}
+  - at: 10
+    proximity: {min_dist_m: 2.5, sector: REAR, conf: 0.9}
+  - at: 11
+    proximity: {min_dist_m: 2.5, sector: REAR, conf: 0.9}
+  - at: 12
+    proximity: {min_dist_m: 2.5, sector: REAR, conf: 0.9}
+  - at: 13
+    proximity: {min_dist_m: 2.5, sector: REAR, conf: 0.9}
+  - at: 14
+    proximity: {min_dist_m: 2.5, sector: REAR, conf: 0.9}
+  - at: 15
+    proximity: {min_dist_m: 2.5, sector: REAR, conf: 0.9}
+  - at: 16
+    proximity: {min_dist_m: 2.5, sector: REAR, conf: 0.9}
+  - at: 17
+    proximity: {min_dist_m: 2.5, sector: REAR, conf: 0.9}
+  - at: 18
+    proximity: {min_dist_m: 2.5, sector: REAR, conf: 0.9}
+  - at: 19
+    proximity: {min_dist_m: 2.5, sector: REAR, conf: 0.9}
+  - at: 20
+    proximity: {min_dist_m: 5.0, sector: REAR, conf: 0.9}
+  - at: 21
+    proximity: {min_dist_m: 5.0, sector: REAR, conf: 0.9}
+  - at: 22
+    proximity: {min_dist_m: 5.0, sector: REAR, conf: 0.9}
+  - at: 23
+    proximity: {min_dist_m: 5.0, sector: REAR, conf: 0.9}
+  - at: 24
+    proximity: {min_dist_m: 5.0, sector: REAR, conf: 0.9}
+  - at: 25
+    label: null
+    proximity: {min_dist_m: null, sector: null, conf: 0.9}
+  - at: 26
+    proximity: {min_dist_m: null, sector: null, conf: 0.9}
+  - at: 27
+    proximity: {min_dist_m: null, sector: null, conf: 0.9}
+  - at: 28
+    proximity: {min_dist_m: null, sector: null, conf: 0.9}
+  - at: 29
+    proximity: {min_dist_m: null, sector: null, conf: 0.9}
+  - at: 30
+    proximity: {min_dist_m: null, sector: null, conf: 0.9}
+  - at: 31
+    proximity: {min_dist_m: null, sector: null, conf: 0.9}
+  - at: 32
+    proximity: {min_dist_m: null, sector: null, conf: 0.9}
+  - at: 33
+    proximity: {min_dist_m: null, sector: null, conf: 0.9}
+  - at: 34
+    proximity: {min_dist_m: null, sector: null, conf: 0.9}

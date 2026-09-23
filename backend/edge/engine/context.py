@@ -110,17 +110,23 @@ class MachineContext:
         if ground_press and (now - tm["ground_press_since"]).total_seconds() >= ground_press_hold_s:
             tm["ground_press_ok_at"] = now
 
-    def proximity_now(self, now: datetime, fresh_s: float) -> tuple[float | None, str]:
-        """(distance_m, status). Prefer a fresh `cv` frame with frame_ok, else a fresh `sim`
-        frame, else UNKNOWN (a channel was expected or seen) / UNAVAILABLE (none fitted).
-        `math.inf` = a good frame with no person in view; `None` = can't tell (I1)."""
+    def fresh_proximity_msg(self, now: datetime, fresh_s: float) -> dict | None:
+        """The proximity frame to trust right now: a fresh `cv` frame with frame_ok, else a
+        fresh `sim` one, else None."""
         for source in ("cv", "sim"):
             entry = self.proximity.get(source)
             if entry is None or (now - entry["at"]).total_seconds() > fresh_s:
                 continue
-            msg = entry["msg"]
-            if not msg.get("frame_ok"):
-                continue
+            if entry["msg"].get("frame_ok"):
+                return entry["msg"]
+        return None
+
+    def proximity_now(self, now: datetime, fresh_s: float) -> tuple[float | None, str]:
+        """(distance_m, status). UNKNOWN when a channel was expected or seen but nothing
+        fresh and usable is there; UNAVAILABLE when none is fitted.
+        `math.inf` = a good frame with no person in view; `None` = can't tell (I1)."""
+        msg = self.fresh_proximity_msg(now, fresh_s)
+        if msg is not None:
             dist = msg.get("min_dist_m")
             return (math.inf if dist is None else dist), "OK"
         if self.has_rear_camera or self.proximity:

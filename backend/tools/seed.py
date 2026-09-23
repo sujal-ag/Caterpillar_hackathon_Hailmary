@@ -19,6 +19,7 @@ import bcrypt
 import yaml
 from sqlmodel import Session, func, select
 
+from common.config import Settings
 from common.db.models import (
     Attachment,
     DiagnosticCode,
@@ -33,9 +34,9 @@ from common.db.models import (
 from common.db.session import create_all, get_engine
 from common.timeutil import to_site_iso
 
-ROOT = Path(__file__).resolve().parents[2]
-SEED_DIR = ROOT / "data" / "seed"
-CATALOGUE_DIR = ROOT / "data" / "catalogue"
+DATA_DIR = Settings().data_dir  # DATA_DIR env var (infra/.env.example)
+SEED_DIR = DATA_DIR / "seed"
+CATALOGUE_DIR = DATA_DIR / "catalogue"
 
 
 def _load(dir_: Path, name: str):

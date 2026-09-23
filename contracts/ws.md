@@ -25,6 +25,8 @@ Every message uses the envelope `ws_envelope.v1`: `{ "type": "...", "ts": "...",
 | `health` | `{sensor_health, models, as_of}` | On change |
 | `ping` | `{}` | Every 10 s |
 
+Order within one engine step (one raw frame, proximity/env/DTC message or tick): `telemetry`, `event`s, `alert`s, `nudge`s, then `state` (then `health` if sensor health changed). A nudge therefore arrives just before the `state` that carries the same step's `exit_checks`. Read the stream to the end; don't stop at the nudge.
+
 UI rules that the backend relies on:
 - The Exit Guard overlay opens on a `nudge` with `display: FULLSCREEN, rule_id: R03`. Checklist ticks come from `state.exit_checks`. A FULLSCREEN CRITICAL alert can be acknowledged, but it stays until its alert is `CLEARED`.
 - Text comes from `contracts/i18n/en.json[message_key]`, with `slots` filled in. Voice comes from `contracts/audio_clips.yaml[audio_clip]`. The tone comes from `tone_pattern`.

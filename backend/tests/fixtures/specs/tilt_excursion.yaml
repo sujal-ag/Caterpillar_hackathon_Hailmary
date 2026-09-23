@@ -1,6 +1,8 @@
-# Truck loading with the belt unfastened at t=10: R01 CRITICAL at 10, repeated at 30 and 50.
-# Phase 3 scenario fixture (plan.md Phase 3 gate). Regenerate:
-#   python tools/fake_machine.py tests/fixtures/specs/belt_off_moving.yaml -o tests/fixtures/scenarios/belt_off_moving.jsonl
+# sim_control.md tilt_excursion: roll 11-17 deg for 20-120 s (HLD §6.14 TILT_EXCURSION).
+# Roll 11 deg at t=10 (> 10 caution) -> R10; 17 deg at 20 (> 15 critical) -> R11, which
+# suppresses R10 (same TILT subject); level again at 50 (40 s excursion) -> both clear.
+# Replay scenario (contracts/sim_control.md; SIM_MODE=replay). Regenerate:
+#   python tools/fake_machine.py tests/fixtures/specs/tilt_excursion.yaml -o tests/fixtures/scenarios/tilt_excursion.jsonl
 site_id: SITE-PUN-01
 machine_id: EXC001
 start: "2026-10-14T07:00:00.000+05:30"
@@ -41,7 +43,13 @@ initial:
   articulation_deg: null
 timeline:
   - at: 0
-    mode: WORK
+    mode: IDLE
     env: {temp_c: 25.0, rh_pct: 50, precip_mm_h: 0.0, rain_flag: false, wind_kmh: 6, gust_kmh: 11, visibility_m: 8000, ground_condition: DRY}
   - at: 10
-    set: {seatbelt: UNFASTENED}
+    set: {roll_deg: 11.0}
+    label: TILT_EXCURSION
+  - at: 20
+    set: {roll_deg: 17.0}
+  - at: 50
+    set: {roll_deg: 1.1}
+    label: null

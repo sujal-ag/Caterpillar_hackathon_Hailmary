@@ -47,6 +47,10 @@ exit_checks:
   all_models: [ENGINE_RUNNING, HYD_UNLOCKED, IMPLEMENT_RAISED, MOVING, SLOPE]
   wheel_loader_extra: [PARK_BRAKE_OFF]
   slope_thresholds: machine_model      # pitch/roll > model caution
+  # Order the Exit Guard checklist is rendered in (nudge.v1 `checklist`): the order the
+  # operator fixes things in the HLD message "lower the bucket, lock hydraulics, stop the
+  # engine" (§3.2, §4.4 R03), then the rest. Filtered to the machine's own check set.
+  checklist_order: [IMPLEMENT_RAISED, HYD_UNLOCKED, ENGINE_RUNNING, MOVING, PARK_BRAKE_OFF, SLOPE]
   hld_ref: "D1"
 
 # Engine-wide timing and alert-fatigue policy.
@@ -115,7 +119,7 @@ rules:
     level: CRITICAL
     state_effect: UNSAFE
     predicate: exit_guard_unsafe
-    params: {}
+    params: {checklist: true}              # nudge carries the live Exit Guard checklist
     display: FULLSCREEN
     channels: [VISUAL, AUDIO, VIBRATION]
     message_key: nudge.exit_guard.before_exiting
@@ -161,7 +165,7 @@ rules:
     # Seat switch UNKNOWN + belt OFF + running + any exit check FAIL/UNKNOWN -> show R05 as a
     # BANNER listing the failed checks (slots.failed_checks): the strong-intent path is blind
     # without the seat switch (Phase 3 user decision, I1; see docs/PROGRESS.md).
-    params: {degraded_seat_display: BANNER}
+    params: {degraded_seat_display: BANNER, checklist: true}   # HLD R05: chip shows checklist status
     display: CHIP
     channels: [VISUAL]
     message_key: nudge.exit.prewarn
@@ -188,6 +192,9 @@ rules:
     channels: [VISUAL, AUDIO]
     message_key: nudge.exit.three_point_contact
     audio_clip: exit_three_point_contact
+    # Wins the 30 s audio budget over R04 when both raise on the same tick (Phase 4 user
+    # decision): the slippery-steps warning is the one the operator must hear (HLD §3.2).
+    audio_priority: 1
     cooldown_s: 0
     repeat_while_true_s: null
     escalate_after_s: null

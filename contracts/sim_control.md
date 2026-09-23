@@ -11,6 +11,8 @@ P1's simulator exposes:
 
 Edge `POST /sim/scenario` and `GET /sim/scenarios` proxy these calls (Phase 4). With `SIM_MODE=replay` the edge replays `backend/tests/fixtures/scenarios/{name}.jsonl` instead, so the demo never waits on the simulator.
 
+Replay mode only (edge addition, not part of P1's API): after a scenario ends, its last raw frame keeps being re-sent at the fixture's frame rate (`SIM_REPLAY_HOLD`), so the machine stays in the end state. `POST /sim/stop` ends playback and the hold. Only one source may publish raw frames for a machine at a time: two publishers interleave, and the switch debounce and rules then see neither one's machine.
+
 Required scenario names. Each one is deterministic and ends in a steady state:
 
 | name | What it must produce (signals on `raw.v1` unless noted) |
