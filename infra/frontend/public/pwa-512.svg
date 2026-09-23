@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Operator Companion icon">
+  <rect width="512" height="512" rx="110" fill="#111827"/>
+  <rect x="80" y="80" width="352" height="352" rx="78" fill="#f5f5f5"/>
+  <rect x="136" y="190" width="240" height="182" rx="38" fill="#0f172a"/>
+  <rect x="168" y="152" width="52" height="52" rx="16" fill="#34d399"/>
+  <path d="M172 304h168" stroke="#f8fafc" stroke-width="26" stroke-linecap="round"/>
+  <path d="M256 146v54" stroke="#f8fafc" stroke-width="26" stroke-linecap="round"/>
+  <path d="M256 260v36" stroke="#ef4444" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="326" cy="240" r="18" fill="#fbbf24"/>
+</svg>
