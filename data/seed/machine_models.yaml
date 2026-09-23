@@ -1,0 +1,64 @@
+# HLD §6.0 spec sheet + §6.13 calibration. Thresholds rules.yaml refers to as
+# `thresholds: machine_model` (predicates.grounded, exit_checks.slope_thresholds, R10/R11/
+# R12/R13/R18). fuel_lph_* are HLD §6.13 "Simulator operating assumptions" ranges, stored
+# as midpoints. D9: CAT-950GC proximity_* are assumptions pending team confirmation.
+- model_id: CAT-320
+  family: EXCAVATOR
+  engine_model: C4.4
+  net_power_kw: 128.5
+  operating_weight_kg: 22600
+  bucket_capacity_m3: 1.19
+  fuel_tank_l: 345
+  def_tank_l: 39
+  max_implement_press_kpa: 35000
+  low_idle_rpm: 1000
+  rated_rpm: 2200
+  high_idle_rpm: 2200
+  idle_fuel_lph: 2.0
+  fuel_lph_light: 8.5
+  fuel_lph_med: 12.5
+  fuel_lph_heavy: 17.0
+  nominal_cycle_s: 18
+  tail_swing_radius_m: 2.83
+  pitch_caution_deg: 15
+  pitch_critical_deg: 25
+  roll_caution_deg: 10
+  roll_critical_deg: 15
+  roll_caution_lift_deg: 5
+  coolant_caution_c: 105
+  coolant_critical_c: 110
+  hyd_oil_caution_c: 95
+  hyd_oil_critical_c: 105
+  proximity_critical_m: 3.8
+  proximity_warning_m: 8.0
+  assumptions: []
+- model_id: CAT-950GC
+  family: WHEEL_LOADER
+  engine_model: C7.1
+  net_power_kw: 168
+  operating_weight_kg: 18849
+  bucket_capacity_m3: 3.65
+  fuel_tank_l: 290
+  def_tank_l: 16
+  max_implement_press_kpa: 27900
+  low_idle_rpm: 800
+  rated_rpm: 1700
+  high_idle_rpm: 2200
+  idle_fuel_lph: 3.0
+  fuel_lph_light: 13.5
+  fuel_lph_med: 17.5
+  fuel_lph_heavy: 22.5
+  nominal_cycle_s: 37
+  tail_swing_radius_m: null
+  pitch_caution_deg: 12
+  pitch_critical_deg: 20
+  roll_caution_deg: 8
+  roll_critical_deg: 12
+  roll_caution_lift_deg: null
+  coolant_caution_c: 105
+  coolant_critical_c: 110
+  hyd_oil_caution_c: 95
+  hyd_oil_critical_c: 105
+  proximity_critical_m: 5.0
+  proximity_warning_m: 12.0
+  assumptions: [proximity_critical_m, proximity_warning_m]   # D9 — team to confirm (Q6)

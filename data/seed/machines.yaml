@@ -1,0 +1,41 @@
+# EXC001 engine_hours_start on its first shift should read ~1524.62 h to match the
+# organizer anchor rows (HLD §6.13) — set on the shift, not here (machine has no meter field).
+- machine_id: EXC001
+  model_id: CAT-320
+  oem_name: CAT
+  serial_number: "CAT0320PEJP00001"
+  year: 2025
+  site_id: SITE-PUN-01
+  current_attachment_id: ATT-GP-119
+  telematics_device_id: PL-EXC001
+  has_rear_camera: true
+  has_seat_switch: true
+  has_coupler_sensor: true
+  status: ACTIVE
+  assumptions: [serial_number, telematics_device_id]
+- machine_id: WL001
+  model_id: CAT-950GC
+  oem_name: CAT
+  serial_number: "CAT950GCPEJP0001"
+  year: 2025
+  site_id: SITE-PUN-01
+  current_attachment_id: ATT-GP-365
+  telematics_device_id: PL-WL001
+  has_rear_camera: true
+  has_seat_switch: true
+  has_coupler_sensor: false
+  status: ACTIVE
+  assumptions: [serial_number, telematics_device_id]
+- machine_id: EXC002
+  model_id: CAT-320
+  oem_name: CAT
+  serial_number: "CAT0320PEJP00002"
+  year: 2024
+  site_id: SITE-PUN-01
+  current_attachment_id: null
+  telematics_device_id: PL-EXC002
+  has_rear_camera: true
+  has_seat_switch: true
+  has_coupler_sensor: true
+  status: ACTIVE
+  assumptions: [serial_number, telematics_device_id]

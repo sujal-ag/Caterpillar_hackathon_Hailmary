@@ -1,0 +1,12 @@
+# Pune demo site. lat/lon are a real Pune-area point used only for the weather API and
+# heat-index sanity checks — not tied to any actual jobsite (assumption).
+site_id: SITE-PUN-01
+name: Pune Demo Site
+timezone: Asia/Kolkata
+origin_lat: 18.5204
+origin_lon: 73.8567
+site_plan_image: null
+plan_scale: 0.1
+boundary: null
+lan_available: true
+assumptions: [origin_lat, origin_lon]

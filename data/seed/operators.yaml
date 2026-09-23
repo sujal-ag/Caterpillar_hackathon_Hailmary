@@ -1,0 +1,50 @@
+# seed_pin is plaintext, hashed by tools/seed.py (bcrypt) into pin_hash — never store a
+# precomputed hash here where nobody can eyeball what PIN it corresponds to.
+- operator_id: OP1001
+  name: Demo Operator
+  employee_code: "EMP1001"
+  seed_pin: "1234"
+  experience_years: 6
+  experience_level: VETERAN
+  certified_families: [EXCAVATOR]
+  cert_expiry: "2027-06-30"
+  languages: [en]
+  camera_consent: false
+  persona: AVERAGE
+  assumptions: [cert_expiry]
+- operator_id: OP1002
+  name: Operator B
+  employee_code: "EMP1002"
+  seed_pin: "5678"
+  experience_years: 2
+  experience_level: INTERMEDIATE
+  certified_families: [EXCAVATOR]
+  cert_expiry: "2027-06-30"
+  languages: [en, hi]
+  camera_consent: false
+  persona: NOVICE
+  assumptions: [cert_expiry]
+- operator_id: GUEST0
+  name: Guest Operator
+  employee_code: "GUEST0"
+  seed_pin: "0000"
+  experience_years: null
+  experience_level: null
+  certified_families: []
+  cert_expiry: null
+  languages: [en]
+  camera_consent: false
+  persona: null
+  assumptions: []
+- operator_id: SUP001
+  name: Demo Supervisor
+  employee_code: "SUP001"
+  seed_pin: "9999"
+  experience_years: 12
+  experience_level: VETERAN
+  certified_families: [EXCAVATOR, WHEEL_LOADER]
+  cert_expiry: "2027-06-30"
+  languages: [en]
+  camera_consent: false
+  persona: null
+  assumptions: [cert_expiry]

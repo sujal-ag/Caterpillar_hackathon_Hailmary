@@ -70,6 +70,8 @@ Python commands run from `backend/` using `backend/.venv` (Python 3.11). Compose
 - MQTT sub (not installed on the host): `docker exec operator-companion-mosquitto-1 mosquitto_sub -t 'cat/#' -v`
 - Replay: `.venv/bin/python tools/replay.py tests/fixtures/replay_10min.jsonl --speed 10`
 - Fixture: `.venv/bin/python tools/fake_machine.py tests/fixtures/specs/<name>.yaml -o tests/fixtures/<name>.jsonl`
+- Seed DB: `EDGE_DB_PATH=data/edge.db .venv/bin/python tools/seed.py` (idempotent; loads `data/seed/*.yaml` + `data/catalogue/diagnostic_codes.yaml`)
+- Postgres gate test: `docker compose -f infra/docker-compose.yml --profile cloud up -d postgres`, then `.venv/bin/pytest -k postgres` (skips itself if unreachable)
 - Phase end: `./tools/gen_ts.sh` (TS types + `tsc`) and `.venv/bin/python tools/export_openapi.py`
 
 ## Gotchas

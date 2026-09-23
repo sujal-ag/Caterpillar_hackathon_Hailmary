@@ -1,0 +1,137 @@
+# HLD §6.11 seed list. Wording is generic/conservative demo text, not transcribed from a
+# real CAT manual (HLD §7.5: "production would use licensed CAT SIS content"). A human on
+# the team must review this file before the demo (plan.md Phase 8 open item, Q9).
+- code_id: J1939-110-0
+  spn: 110
+  fmi: 0
+  cat_code: null
+  component: Engine coolant temperature
+  description: Coolant temperature above normal, most severe level
+  severity: 1
+  action_class: STOP
+  what_happened: Engine coolant is above the safe operating temperature.
+  why_it_matters: Continued operation risks engine damage.
+  what_to_do: Stop the machine safely, idle briefly, then shut down. Check the cooler for debris.
+  source_doc: "DEMO corpus — verify against OMM"
+  source_section: null
+  doc_version: null
+
+- code_id: J1939-110-16
+  spn: 110
+  fmi: 16
+  cat_code: null
+  component: Engine coolant temperature
+  description: Coolant temperature above normal, moderately severe level
+  severity: 2
+  action_class: MONITOR
+  what_happened: Coolant temperature is trending high but not yet critical.
+  why_it_matters: Left unaddressed this can progress to a shutdown-level condition.
+  what_to_do: Reduce load and monitor the temperature. Check the cooler for debris.
+  source_doc: "DEMO corpus — verify against OMM"
+  source_section: null
+  doc_version: null
+
+- code_id: J1939-100-1
+  spn: 100
+  fmi: 1
+  cat_code: null
+  component: Engine oil pressure
+  description: Oil pressure below normal, most severe level
+  severity: 1
+  action_class: STOP
+  what_happened: Engine oil pressure has dropped below the safe minimum.
+  why_it_matters: Continued operation risks severe engine damage within minutes.
+  what_to_do: Stop the machine immediately and shut down the engine.
+  source_doc: "DEMO corpus — verify against OMM"
+  source_section: null
+  doc_version: null
+
+- code_id: J1939-1638-16
+  spn: 1638
+  fmi: 16
+  cat_code: null
+  component: Hydraulic oil temperature
+  description: Hydraulic oil temperature above normal, moderately severe level
+  severity: 2
+  action_class: MONITOR
+  what_happened: Hydraulic oil temperature is above normal.
+  why_it_matters: High hydraulic temperature accelerates seal and hose wear.
+  what_to_do: Reduce load and monitor. Check the hydraulic cooler for debris.
+  source_doc: "DEMO corpus — verify against OMM"
+  source_section: null
+  doc_version: null
+
+- code_id: J1939-1761-18
+  spn: 1761
+  fmi: 18
+  cat_code: null
+  component: Diesel exhaust fluid (DEF) level
+  description: DEF level low
+  severity: 2
+  action_class: MONITOR
+  what_happened: DEF level is low.
+  why_it_matters: Continuing without refilling will trigger an emissions inducement (power derate).
+  what_to_do: Refill DEF at the next safe opportunity.
+  source_doc: "DEMO corpus — verify against OMM"
+  source_section: null
+  doc_version: null
+
+- code_id: J1939-97-0
+  spn: 97
+  fmi: null
+  cat_code: null
+  component: Water in fuel
+  description: Water-in-fuel indicator active
+  severity: 2
+  action_class: MONITOR
+  what_happened: Water has been detected in the fuel system.
+  why_it_matters: Water in fuel can damage injectors and cause a loss of power.
+  what_to_do: Drain the fuel/water separator at the next safe opportunity.
+  source_doc: "DEMO corpus — verify against OMM"
+  source_section: null
+  doc_version: null
+
+- code_id: J1939-168-18
+  spn: 168
+  fmi: 18
+  cat_code: null
+  component: Battery voltage
+  description: Battery voltage below normal
+  severity: 3
+  action_class: CONTINUE
+  what_happened: Battery voltage is slightly below normal.
+  why_it_matters: Usually a charging-system or connection issue, not an immediate risk.
+  what_to_do: Continue working. Have the charging system checked at shift end.
+  source_doc: "DEMO corpus — verify against OMM"
+  source_section: null
+  doc_version: null
+
+- code_id: CAT-E360
+  spn: null
+  fmi: null
+  cat_code: E360
+  component: Engine oil pressure
+  description: Low engine oil pressure event
+  severity: 1
+  action_class: STOP
+  what_happened: The machine logged a low oil pressure event.
+  why_it_matters: Continued operation risks severe engine damage.
+  what_to_do: Stop the machine immediately and shut down the engine.
+  source_doc: "DEMO corpus — verify against OMM"
+  source_section: null
+  doc_version: null
+
+- code_id: CAT-E361
+  spn: null
+  fmi: null
+  cat_code: E361
+  component: Engine coolant temperature
+  description: High coolant temperature event
+  severity: 1
+  action_class: STOP
+  what_happened: The machine logged a high coolant temperature event.
+  why_it_matters: Continued operation risks engine damage.
+  what_to_do: Stop the machine safely, idle briefly, then shut down.
+  source_doc: "DEMO corpus — verify against OMM"
+  source_section: null
+  doc_version: null

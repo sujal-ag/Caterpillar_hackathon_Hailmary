@@ -4,6 +4,43 @@ One entry per phase (plan.md §0 rule 3): what was built, gate results, deviatio
 
 ---
 
+## Phase 1 — Storage layer ✅ (2026-09-23)
+
+### Built
+- `common/ids.py`: `uuid7()` via `uuid-utils` (D4).
+- `common/db/models.py`: all 35 SQLModel tables from plan.md Phase 1 item 1 (every HLD §6 entity + the plan.md §3 additions: `window_id`/`review_label` on `telemetry_window`, `active`/`cleared_at` on `safety_alert`, `engine_snapshot`, `machine_state_snapshot`, `device`, `sim_label_log`, `schema_version`). Composite indexes on every time-series table and on `sync_queue (status, priority, seq)`.
+- `common/db/session.py`: engine factory with SQLite WAL/synchronous/busy_timeout/foreign_keys pragmas; same models work unchanged against Postgres.
+- `common/db/writer.py`: `DbWriter` — single writer thread, one queue. A unit of work runs in one transaction (commit on return, rollback on raise = I7). `submit_telemetry` batches 1 Hz rows and never touches the outbox (I8).
+- `common/db/repo.py`: the priority table from plan.md Phase 1 item 2, `enqueue_sync`, `insert_incident`, and `upsert_machine_state_snapshot` (D8 coalescing — one current row per machine, at most one PENDING outbox row per machine).
+- `tools/seed.py`: loads `data/seed/*.yaml` + `data/catalogue/diagnostic_codes.yaml`, `session.merge()` per row (idempotent by construction). Seeds site, both machine models (with D9 assumptions flagged), 3 machines (EXC001, WL001, EXC002), 2 attachments, 4 operators (bcrypt PIN hashes from a plaintext `seed_pin`, never a precomputed hash), 8 task types, 9 diagnostic codes, and today's demo shift + 2 tasks for EXC001.
+- `tools/load_history.py`: no-op stub, prints which files are missing under `data/history/`.
+- `data/seed/*.yaml`, `data/catalogue/diagnostic_codes.yaml`: every value has an HLD/plan reference in a comment; `assumptions: [...]` flags fields the team hasn't confirmed (site lat/lon, machine serials, the D9 950 GC proximity distances, cert expiry dates).
+
+### Gate results
+| Gate | Result |
+|---|---|
+| `create_all` on fresh SQLite | ✅ 35 tables |
+| `create_all` on Postgres (`--profile cloud up -d postgres`) | ✅ same models, same table set, round-tripped an `Incident` insert |
+| Outbox atomicity | ✅ failing unit of work persists neither the incident nor a sync_queue row; success path persists both with matching `entity_id` and `priority: 0` |
+| Coalescing | ✅ 3 `machine_state_snapshot` writes for EXC001 while PENDING → exactly 1 PENDING row, payload from the last write |
+| `telemetry_sample` never enqueues outbox | ✅ |
+| Concurrency (5 concurrent writes racing 60 simulated 1 Hz telemetry rows) | ✅ no `database is locked`; all 60 telemetry rows + all 5 events land |
+| `python tools/seed.py` idempotent | ✅ identical row counts across two runs (site 1, machine_model 2, attachment 2, machine 3, operator 4, task_type 8, diagnostic_code 9, shift 1, task 2) |
+| Full suite | ✅ 72 passed; ruff clean |
+
+### Deviations from plan.md (flagged, not asked in advance — noting here per rule 4)
+1. **Timestamps are ISO-8601 strings, not native `DateTime` columns.** SQLite drops tzinfo on `DateTime`; Postgres needs `timezone=True` to keep it. Since every timestamp on the wire is already this exact string, storing the same string sidesteps a real cross-dialect bug for no cost. String columns still sort correctly (fixed-width, zero-padded).
+2. **`infra/docker-compose.yml`: added `ports: ["5432:5432"]` to the `postgres` service** so the cross-DB gate test (and any dev tooling) can reach it from the host. Dev/test only.
+3. **`shift.walkaround_id` ↔ `walkaround.shift_id` is a genuine circular FK** (a shift has a walkaround; a walkaround belongs to a shift — both directions are in the HLD). Postgres refuses to `DROP`/topologically sort a true cycle, so `shift.walkaround_id`'s FK is declared `use_alter=True` with an explicit name (`fk_shift_walkaround_id`), deferring it to an `ALTER TABLE`. Anywhere code inserts a `Shift` and a `Walkaround` that reference each other in one flush, commit the `Shift` first (without `walkaround_id`), then the `Walkaround`, then update `shift.walkaround_id` — don't rely on a single flush to order it. Same caution applies to `shift.readiness_check_id` (no cycle there since `readiness_check.shift_id` has no FK constraint, but the sequencing is the same in practice: readiness check happens before shift start).
+4. **Enum-shaped columns (`class`, `level`, `status`, ...) are plain `str`,** not a DB enum type. The allowed values are already the single source of truth in `contracts/schemas/*.json`; a DB-level CHECK per dialect would be a second copy to keep in sync for no benefit at this stage.
+5. **`assumptions` is a real JSON column only on `MachineModel` and `TaskType`.** Other seed tables (`Site`, `Attachment`, `Machine`, `Operator`) carry `assumptions:` in their YAML as reviewer metadata, but `tools/seed.py` drops it before constructing the row — there's no current reader for "this machine's serial number is a guess" at runtime, unlike the D9 proximity thresholds a rule actually evaluates.
+
+### Open items
+- `data/history/` doesn't exist yet — `load_history.py` correctly no-ops. Wire the real import once P1 delivers (`contracts/history.md`).
+- Postgres/cloud containers were left running locally after the gate check (`docker compose --profile cloud up -d postgres`); harmless, stop with `docker compose -f infra/docker-compose.yml --profile cloud down` if not needed.
+
+---
+
 ## Phase 0 — Foundations and contracts ✅ (2026-09-23)
 
 ### Built

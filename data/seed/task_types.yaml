@@ -1,0 +1,57 @@
+# HLD §6.7. Base rates are simulator assumptions (organizer sample rows didn't specify them).
+- task_type_id: TRUCK_LOAD
+  name: Truck loading
+  unit: M3
+  machines: [CAT-320, CAT-950GC]
+  base_rate_low: 140
+  base_rate_high: 280
+  assumptions: []
+- task_type_id: BULK_EXC
+  name: Bulk excavation to stockpile
+  unit: M3
+  machines: [CAT-320]
+  base_rate_low: 120
+  base_rate_high: 180
+  assumptions: []
+- task_type_id: TRENCH
+  name: Trenching
+  unit: M3
+  machines: [CAT-320]
+  base_rate_low: 40
+  base_rate_high: 90
+  assumptions: []
+- task_type_id: BACKFILL
+  name: Backfilling
+  unit: M3
+  machines: [CAT-320, CAT-950GC]
+  base_rate_low: 100
+  base_rate_high: 180
+  assumptions: []
+- task_type_id: GRADE
+  name: Grading / levelling
+  unit: M2
+  machines: [CAT-320]
+  base_rate_low: 150
+  base_rate_high: 400
+  assumptions: []
+- task_type_id: LOAD_CARRY
+  name: Stockpiling / load-and-carry
+  unit: M3
+  machines: [CAT-950GC]
+  base_rate_low: 120
+  base_rate_high: 220
+  assumptions: []
+- task_type_id: LIFT
+  name: Pipe placement / lifting
+  unit: LIFTS
+  machines: [CAT-320]
+  base_rate_low: 6
+  base_rate_high: 15
+  assumptions: []
+- task_type_id: CLEANUP
+  name: Site cleanup
+  unit: HOURS
+  machines: [CAT-320, CAT-950GC]
+  base_rate_low: null
+  base_rate_high: null
+  assumptions: []

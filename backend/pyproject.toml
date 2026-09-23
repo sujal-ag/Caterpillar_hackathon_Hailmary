@@ -9,9 +9,15 @@ dependencies = [
     "paho-mqtt>=2",
     "pyyaml",
     "tzdata",
+    "sqlmodel",
+    "uuid-utils",
+    "bcrypt",
 ]
 
 [project.optional-dependencies]
+postgres = [
+    "psycopg[binary]",
+]
 dev = [
     "pytest",
     "httpx",

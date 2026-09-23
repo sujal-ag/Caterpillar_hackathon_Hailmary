@@ -9,3 +9,5 @@ node_modules/
 infra/.env
 .DS_Store
 *.egg-info/
+data/edge.db
+data/history/

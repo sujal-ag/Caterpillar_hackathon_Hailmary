@@ -1,0 +1,14 @@
+- attachment_id: ATT-GP-119
+  type: GP_BUCKET
+  capacity_m3: 1.19
+  weight_kg: 850
+  coupler_type: PIN_ON
+  compatible_models: [CAT-320]
+  assumptions: [weight_kg]
+- attachment_id: ATT-GP-365
+  type: GP_BUCKET
+  capacity_m3: 3.65
+  weight_kg: 1600
+  coupler_type: PIN_ON
+  compatible_models: [CAT-950GC]
+  assumptions: [weight_kg]

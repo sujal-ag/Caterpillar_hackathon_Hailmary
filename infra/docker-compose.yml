@@ -57,6 +57,7 @@ services:
   postgres:
     profiles: [cloud]
     image: postgres:16
+    ports: ["5432:5432"]  # dev/test only: lets the host run cross-DB tests against it
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-companion}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-companion-dev}
