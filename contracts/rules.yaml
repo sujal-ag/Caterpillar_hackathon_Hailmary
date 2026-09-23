@@ -158,7 +158,10 @@ rules:
     level: INFO
     state_effect: NONE
     predicate: exit_hint_only
-    params: {}
+    # Seat switch UNKNOWN + belt OFF + running + any exit check FAIL/UNKNOWN -> show R05 as a
+    # BANNER listing the failed checks (slots.failed_checks): the strong-intent path is blind
+    # without the seat switch (Phase 3 user decision, I1; see docs/PROGRESS.md).
+    params: {degraded_seat_display: BANNER}
     display: CHIP
     channels: [VISUAL]
     message_key: nudge.exit.prewarn

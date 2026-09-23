@@ -9,7 +9,16 @@ never syncable (I8) and is written via `DbWriter.submit_telemetry`, not through 
 
 from sqlmodel import Session, select
 
-from common.db.models import MachineStateSnapshot, SyncQueue
+from common.db.models import (
+    DtcOccurrence,
+    EngineSnapshot,
+    ExitEvent,
+    IdleEpisode,
+    MachineEvent,
+    MachineStateSnapshot,
+    SafetyAlert,
+    SyncQueue,
+)
 from common.timeutil import now_utc, to_site_iso
 
 _PRIORITY_P0 = {"incident", "hazard_pin"}
@@ -92,3 +101,41 @@ def upsert_machine_state_snapshot(session: Session, machine_id: str, payload: di
         session.add(pending)
     else:
         enqueue_sync(session, "machine_state_snapshot", machine_id, "UPSERT", payload)
+
+
+# --- Phase 3 engine writes: entity + outbox row in the same unit of work (I7) ---------------
+
+
+def insert_machine_event(session: Session, event: MachineEvent) -> None:
+    # Add a copy: the caller keeps publishing its object after this session commits, and a
+    # committed instance is expired (its fields read back empty outside the session).
+    row = event.model_dump()
+    session.add(MachineEvent(**row))
+    enqueue_sync(session, "machine_event", event.event_id, "UPSERT", row)
+
+
+def upsert_safety_alert(session: Session, alert: dict) -> None:
+    session.merge(SafetyAlert(**alert))
+    enqueue_sync(session, "safety_alert", alert["alert_id"], "UPSERT", alert)
+
+
+def upsert_exit_event(session: Session, row: dict) -> None:
+    session.merge(ExitEvent(**row))
+    enqueue_sync(session, "exit_event", row["exit_id"], "UPSERT", row)
+
+
+def upsert_dtc_occurrence(session: Session, row: dict) -> None:
+    session.merge(DtcOccurrence(**row))
+    enqueue_sync(session, "dtc_occurrence", row["occurrence_id"], "UPSERT", row)
+
+
+def insert_idle_episode(session: Session, row: dict) -> None:
+    session.merge(IdleEpisode(**row))
+    enqueue_sync(session, "idle_episode", row["episode_id"], "UPSERT", row)
+
+
+def upsert_engine_snapshot(session: Session, machine_id: str, payload: dict) -> None:
+    """Crash-recovery state (D18). Edge-local, never synced."""
+    session.merge(
+        EngineSnapshot(machine_id=machine_id, payload=payload, updated_at=to_site_iso(now_utc()))
+    )
