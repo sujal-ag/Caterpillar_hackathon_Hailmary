@@ -30,9 +30,14 @@ export default function AuthScreen({ onUnlock }) {
   return (
     <div className="auth-screen">
       <div className="auth-card">
-        <p className="auth-kicker">Operator Companion</p>
-        <h1 className="auth-title">Site Access</h1>
-        <p className="auth-subtitle">Sign in with your employee code and PIN to bind to the machine.</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
+          <img src="/catops-excavator.svg" alt="CatOps" style={{ width: '56px', height: '56px', borderRadius: '12px' }} />
+          <div>
+            <p className="auth-kicker">Caterpillar Field Companion</p>
+            <h1 className="auth-title" style={{ marginTop: '2px', fontSize: '28px' }}>CatOps Access</h1>
+          </div>
+        </div>
+        <p className="auth-subtitle">Sign in with your employee badge code &amp; PIN to bind machine telemetry.</p>
 
         {errorMsg && (
           <div

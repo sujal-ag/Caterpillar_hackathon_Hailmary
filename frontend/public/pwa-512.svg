@@ -1,10 +1,66 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Operator Companion icon">
-  <rect width="512" height="512" rx="110" fill="#111827"/>
-  <rect x="80" y="80" width="352" height="352" rx="78" fill="#f5f5f5"/>
-  <rect x="136" y="190" width="240" height="182" rx="38" fill="#0f172a"/>
-  <rect x="168" y="152" width="52" height="52" rx="16" fill="#34d399"/>
-  <path d="M172 304h168" stroke="#f8fafc" stroke-width="26" stroke-linecap="round"/>
-  <path d="M256 146v54" stroke="#f8fafc" stroke-width="26" stroke-linecap="round"/>
-  <path d="M256 260v36" stroke="#ef4444" stroke-width="26" stroke-linecap="round"/>
-  <circle cx="326" cy="240" r="18" fill="#fbbf24"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="catBg512" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1c1917"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </linearGradient>
+
+    <linearGradient id="catYellow512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD633"/>
+      <stop offset="100%" stop-color="#E5B800"/>
+    </linearGradient>
+
+    <linearGradient id="metalDark512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3f3f46"/>
+      <stop offset="100%" stop-color="#18181b"/>
+    </linearGradient>
+
+    <filter id="shadow512" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="110" fill="url(#catBg512)"/>
+  <rect x="12" y="12" width="488" height="488" rx="98" fill="none" stroke="#27272a" stroke-width="6"/>
+
+  <polygon points="60,420 180,420 120,320" fill="url(#catYellow512)" opacity="0.15"/>
+
+  <g filter="url(#shadow512)">
+    <rect x="100" y="340" width="280" height="70" rx="35" fill="#18181b" stroke="#3f3f46" stroke-width="8"/>
+    <rect x="125" y="355" width="230" height="40" rx="20" fill="#09090b"/>
+    <circle cx="150" cy="375" r="14" fill="#52525b"/>
+    <circle cx="195" cy="375" r="14" fill="#52525b"/>
+    <circle cx="240" cy="375" r="14" fill="#52525b"/>
+    <circle cx="285" cy="375" r="14" fill="#52525b"/>
+    <circle cx="330" cy="375" r="14" fill="#52525b"/>
+
+    <rect x="170" y="315" width="140" height="30" rx="6" fill="url(#metalDark512)"/>
+
+    <path d="M140 315 L140 230 C140 210, 160 195, 185 195 L280 195 C300 195, 315 210, 315 230 L315 315 Z" fill="url(#catYellow512)"/>
+    <path d="M135 315 L135 240 C135 230, 145 220, 155 220 L175 220 L175 315 Z" fill="#27272a"/>
+    <path d="M210 210 L270 210 C278 210, 285 217, 285 225 L285 275 L210 275 Z" fill="#0284c7" opacity="0.85"/>
+    <path d="M215 215 L250 215 L230 270 L215 270 Z" fill="#ffffff" opacity="0.25"/>
+    <rect x="208" y="272" width="80" height="6" rx="3" fill="#18181b"/>
+
+    <circle cx="280" cy="250" r="12" fill="#18181b" stroke="#71717a" stroke-width="3"/>
+    
+    <path d="M270 260 L350 140 C360 125, 380 125, 395 140 L405 155 C415 170, 400 190, 375 200 L300 275 Z" fill="url(#catYellow512)"/>
+    <path d="M260 220 L345 130" stroke="#18181b" stroke-width="12" stroke-linecap="round"/>
+    <path d="M305 172 L355 120" stroke="#e4e4e7" stroke-width="7" stroke-linecap="round"/>
+
+    <path d="M380 135 L445 230 C452 240, 445 255, 430 255 L405 250 L365 160 Z" fill="url(#metalDark512)"/>
+    <circle cx="380" cy="140" r="9" fill="url(#catYellow512)" stroke="#18181b" stroke-width="3"/>
+
+    <path d="M435 245 C455 250, 475 270, 465 295 C455 315, 425 320, 410 295 L420 250 Z" fill="url(#catYellow512)"/>
+    <polygon points="465,295 478,310 468,312" fill="#18181b"/>
+    <polygon points="455,305 468,320 458,322" fill="#18181b"/>
+    <polygon points="443,313 456,328 446,330" fill="#18181b"/>
+    <circle cx="430" cy="250" r="7" fill="#18181b"/>
+  </g>
+
+  <g transform="translate(256, 462)">
+    <text x="0" y="0" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="900" font-size="44" letter-spacing="4" text-anchor="middle" fill="#ffffff">
+      CAT<tspan fill="url(#catYellow512)">OPS</tspan>
+    </text>
+  </g>
 </svg>
