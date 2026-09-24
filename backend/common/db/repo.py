@@ -18,6 +18,8 @@ from common.db.models import (
     MachineStateSnapshot,
     SafetyAlert,
     SyncQueue,
+    TelemetryMinute,
+    TelemetryWindow,
 )
 from common.timeutil import now_utc, to_site_iso
 
@@ -139,3 +141,14 @@ def upsert_engine_snapshot(session: Session, machine_id: str, payload: dict) -> 
     session.merge(
         EngineSnapshot(machine_id=machine_id, payload=payload, updated_at=to_site_iso(now_utc()))
     )
+
+
+def insert_telemetry_minute(session: Session, row: dict) -> None:
+    session.add(TelemetryMinute(**row))
+    entity_id = f"{row['machine_id']}@{row['window_start']}"
+    enqueue_sync(session, "telemetry_minute", entity_id, "UPSERT", row)  # P3
+
+
+def upsert_telemetry_window(session: Session, row: dict) -> None:
+    session.merge(TelemetryWindow(**row))
+    enqueue_sync(session, "telemetry_window", row["window_id"], "UPSERT", row)  # P2

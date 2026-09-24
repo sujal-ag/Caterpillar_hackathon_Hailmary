@@ -25,9 +25,9 @@ Conventions:
 | POST | `/readiness` | Submit a check → `readiness.v1` (`score`, `rating`, `reasons[]` = i18n keys `readiness.reason.*`). Never blocks (I10) | operator | 5 ✅ |
 | POST | `/readiness/{id}/override` | Supervisor PIN override — **cut (24 h plan)** | supervisor | — |
 | POST | `/walkaround` | Checklist — **cut (24 h plan)** | operator | — |
-| GET | `/tasks?shift_id=` | Today's tasks with predictions (`task.v1[]`) | operator | 6 |
-| POST | `/tasks/{id}/status` | `{status, delay_reason?}` | operator | 6 |
-| GET | `/tasks/{id}/eta` | `EtaPrediction` | operator | 6 |
+| GET | `/tasks?shift_id=&machine=` | `{as_of, tasks: task.v1[]}` for the machine's current shift (or `shift_id`), each with `prediction` | operator | 6 ✅ |
+| POST | `/tasks/{id}/status` | `{status, delay_reason?, actual_quantity?}` → `task.v1`. IN_PROGRESS stamps `actual_start`, DONE `actual_end`; re-estimates the machine's ETAs | operator | 6 ✅ |
+| GET | `/tasks/{id}/eta` | `EtaPrediction` + `task_id`, `as_of`; 404 when not predicted (done, time-boxed) | operator | 6 ✅ |
 | GET | `/state/current` | Same content as the WS `snapshot` | operator | 4 |
 | POST | `/alerts/{id}/ack` | Acknowledge (≠ clear) | operator | 4 |
 | GET | `/alerts/{id}/why` | Rule id, inputs, thresholds | operator | 4 |
@@ -41,11 +41,11 @@ Conventions:
 | POST | `/idle/{episode_id}/reason` | `{reason_tag}` (R09 chip) — skipped: R09 is cut (24 h plan) | operator | — |
 | GET | `/diagnostics/active` | Active DTC cards: what happened / why it matters / what to do + `action_class` (no LLM) | operator | 8 |
 | POST | `/assistant/ask` | `{question, context_code?}` → `{answer, citations[], action_class, model: local\|cloud\|template, latency_ms}` | operator | 8 |
-| GET | `/lessons/assigned` | Assignments + `deliverable` | operator | 6 |
-| GET | `/lessons/{id}` | Lesson content. `409` while the machine is active (I5) | operator | 6 |
-| POST | `/lessons/{id}/complete` | `{score, answers[]}` | operator | 6 |
-| GET | `/scorecard/{operator_id}?period=day\|week` | Scorecard | operator (self) / supervisor | 6 |
-| POST | `/fatigue/samples` | In-shift fatigue samples (stretch, D5) | operator | 6 |
+| GET | `/lessons/assigned?operator_id=` | `{as_of, assignments[]}` with `reason`, `deliverable`, lesson summary (`operator_id`: supervisor only) | operator | 6 ✅ |
+| GET | `/lessons/{id}` | `{id}` = **assignment_id** → `{assignment, lesson, replay}`. `409` unless the machine is known OFF or the shift ended (I5) | operator | 6 ✅ |
+| POST | `/lessons/{id}/complete` | `{score 0–100, answers[]}` (assignment_id). `409` while the machine may be active (I5) | operator | 6 ✅ |
+| GET | `/scorecard/{operator_id}?period=day\|week` | Scorecard — **cut (24 h plan)** | operator (self) / supervisor | — |
+| POST | `/fatigue/samples` | In-shift fatigue samples — **cut (24 h plan)** | operator | — |
 | POST | `/sim/scenario` | `{name, machine_id?}` proxy to the sim, or replay (`sim_control.md`) | admin | 4 |
 | GET | `/sim/scenarios` | Scenario names | admin | 4 |
 | POST | `/sim/stop` | Replay mode: stop the running scenario and its hold frames → `{ok, stopped}`. Proxy mode → `409` (the sim control API has no stop). Edge addition, Phase 4 | admin | 4 |

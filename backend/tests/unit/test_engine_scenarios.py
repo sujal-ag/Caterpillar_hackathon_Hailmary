@@ -42,6 +42,9 @@ def db(tmp_path):
     return eng
 
 
+FIXTURE_DAY = "2026-10-14"  # fixtures run on this date; seeded demo history is days earlier
+
+
 @pytest.fixture
 def writer(db):
     w = DbWriter(db, batch_window_s=0.05)
@@ -94,7 +97,7 @@ def test_unsafe_exit(writer, db):
     assert order == ["IMPLEMENT_RAISED", "HYD_UNLOCKED", "ENGINE_RUNNING"]
     # exit_event: UNSAFE at intent, corrected when it leaves UNSAFE (72 s, D1) -> 9 s.
     with Session(db) as s:
-        (ex,) = s.exec(select(ExitEvent)).all()
+        (ex,) = s.exec(select(ExitEvent).where(ExitEvent.ts >= FIXTURE_DAY)).all()
         assert ex.state_at_intent == "UNSAFE" and ex.corrected
         assert ex.time_to_correct_s == pytest.approx(9, abs=1)
         assert ex.three_point_prompted and ex.wet_conditions
@@ -292,9 +295,11 @@ def test_crash_mid_unsafe_exit_restarts_and_rehydrates(writer, db):
     with Session(db) as s:
         types = [e.type for e in s.exec(select(MachineEvent))]
         assert types.count("EXIT_ATTEMPT") == 1  # no duplicate after rehydrate
-        (ex,) = s.exec(select(ExitEvent)).all()
+        (ex,) = s.exec(select(ExitEvent).where(ExitEvent.ts >= FIXTURE_DAY)).all()
         assert ex.corrected and ex.time_to_correct_s == pytest.approx(9, abs=1)
-        r03 = s.exec(select(SafetyAlert).where(SafetyAlert.rule_id == "R03")).all()
+        r03 = s.exec(
+            select(SafetyAlert).where(SafetyAlert.rule_id == "R03", SafetyAlert.ts >= FIXTURE_DAY)
+        ).all()
         assert len(r03) == 1 and not r03[0].active  # same alert, cleared once corrected
         assert load_snapshot(s, "EXC001") is not None
 

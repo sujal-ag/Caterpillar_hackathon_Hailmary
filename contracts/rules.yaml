@@ -616,7 +616,7 @@ rules:
     once_per: null
     notify_supervisor: false
     lesson_trigger: false
-    enabled: false                       # cut (24h plan, Phase 5)
+    enabled: true                        # kept (user, Phase 6)
     hld_ref: "§4.4 R23; §4.5"
 
   - id: R24

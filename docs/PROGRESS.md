@@ -4,6 +4,73 @@ One entry per phase (plan.md §0 rule 3): what was built, gate results, deviatio
 
 ---
 
+## Phase 6 — Prediction and learning: ML adapter, ETA + tasks, anomaly + R23, lessons + Replay ✅ (24 h scope) (2026-09-24)
+
+### Scope
+- **Cut (24 h plan):** scorecard, model hot-swap, fatigue samples/R19, fuel baseline R24.
+- **Kept after all (user, mid-build):** anomaly detection. `"the anomaly detection is there - keep it"`, so the anomaly job and R23 are built and R23 is `enabled: true` again.
+- **P1 (ML) owns the models.** The backend loads them only through `ml_runtime` (`contracts/ml_runtime.md`). P1's package and model files aren't delivered yet, so the gates use a test stub with the same interface.
+
+### Built
+- **Demo data relative to now (user request).** `tools/seed.run(engine, now, settings)` uses the runtime's clock.
+  - Demo tasks attach to the shift for `now`'s date, scheduled as offsets from the shift's planned start (`tasks_demo.yaml` `start/end_after_shift_min`). Ids carry the date. Shifts and tasks are insert-only, so a restart never resets them.
+  - OP1001 gets one earlier unsafe exit (R03 alert, cleared, plus an UNSAFE exit_event, corrected) dated `now − 2 days`, with UUIDv7 ids from that instant (`common/ids.uuid7_at`). It is inserted only if OP1001 has no R03 in the last 7 days. It is demo master data like the rest of the seed, so no outbox rows.
+  - Lessons are seeded from `lessons.json`.
+- **ML adapter** (`edge/ml/adapter.py`):
+  - Imports `ml_runtime`. For `eta` / `anomaly_EXCAVATOR` / `anomaly_WHEEL_LOADER` it takes the active `model_registry` row, checks the sha256 of `MODELS_DIR/{name}/{version}`, then calls `load()`.
+  - Any failure (package missing, no row, missing file, sha mismatch, load raising) → that model is UNAVAILABLE, with the reason in `/system/status.model_detail`.
+  - Predictions that raise or are invalid (e.g. p50 ≤ 0) are refused → fallback.
+  - `tools/register_model.py` is the P1 hand-off (hot-swap is cut: register, then restart).
+  - The stub `tests/stubs/ml_runtime/` is test-only.
+- **ETA** (`edge/ml/features.py`, `edge/ml/eta_service.py`):
+  - Exact `ml_features.md` keys. The operator rate follows the cold-start ladder: operator (≥ 3 done tasks) → experience cohort → task-type midpoint.
+  - Generic fallback per plan.md §5.6, using the new `data/seed/soil_types.yaml` (HLD §6.7 fill factors; clay mapping `assumption: true`; wet clay +10 % cycle time). p90 = 1.4 × p50. CLEANUP gets no prediction.
+  - Chain: IN_PROGRESS → actual_start + p50 + unplanned-stop minutes (union of engine-off and operator-out intervals); next tasks → max(scheduled_start, previous ETA) + p50; a DONE task's actual_end feeds the chain.
+  - Predictions are stored on the task (+ `pred_label`, `pred_rate_source`; schema v4) with outbox P1. WS `eta` is pushed for every change. The snapshot `eta` = the current or next task.
+  - Triggers: shift start, readiness, task status, IGNITION_OFF/ON, EXIT_COMPLETED/MOUNT, and a rain flip.
+- **Tasks REST**: `GET /tasks`, `POST /tasks/{id}/status`, `GET /tasks/{id}/eta` (task.v1-validated).
+- **Hourly windows live + anomaly** (`edge/ml/anomaly_job.py`):
+  - The engine now owns the Phase 2 `RollupAccumulator`. Closed minutes go out as `telemetry_minute` (P3); closed hours as `telemetry_window` (P2), with `alert_count`, `critical_count` and `safety_alert_triggered` counted by the engine.
+  - A closed window → runner `on_window` → anomaly queue → the frozen feature dict + robust z vs the operator's 14-day windows (median/MAD) → the family model → `anomaly_score`, `anomaly_flagged`, `anomaly_top_features` (schema v4) + outbox.
+  - Then `set_anomaly` → **R23 INFO, visual only**. `review_queue()` = flagged, unlabelled windows.
+- **Lessons + Replay** (`edge/lessons/engine.py`, `edge/api/lessons.py`):
+  - A RAISED `lesson_trigger` rule for an operator → assign if CRITICAL or ≥ 2× in 7 days (reason `"R03 ×2 in 7 days"` / `"R03 critical"`). One open assignment per (operator, lesson). Lesson pick: rule → family, else the subject's generic lesson.
+  - R03 creates a Replay `scenario` from that alert's exact inputs, filling P3's template placeholders only.
+  - Deliverable only when the operator's machine is known OFF, or no shift is ACTIVE. `GET /lessons/{assignment_id}` and `/complete` return **409 otherwise (I5, server-side)**. WS `lesson` is pushed when deliverability flips.
+  - `data/lessons/lessons.json` is a **lesson.v1 stub** (all text marked STUB) until P3 delivers (Q7).
+- **LEARN/PREDICT triggers run off an in-process Broadcaster listener, not MQTT**, so they keep working with the broker down. On queue overflow they resync (recompute everything), rather than skip.
+
+### Gate results
+| Gate | Result |
+|---|---|
+| ETA with the stub model: p50/p90/drivers/model_version | ✅ `test_eta_with_stub_model` (model version, 3 drivers, `/system/status` LOCAL + version); with 3 done tasks → `OPERATOR` source, no label, p50 = 141.2 min as hand-computed |
+| Model missing / corrupt → generic, labelled, no 500 | ✅ file deleted, sha tampered, prediction invalid → "Estimate (generic)", `model_version generic`, p50 155.3; `model_detail.errors` says why |
+| Generic maths | ✅ `test_eta.py`: TRUCK_LOAD 420 m³ CLAY_WET → p50 155.3 / p90 217.4 (hand-computed in the test); CLEANUP → none |
+| Unplanned stop 12 min moves the ETA ≈ 12 min | ✅ engine OFF 07:01 → ON 07:13 on an IN_PROGRESS task → ETA +12 min, WS `eta` pushed |
+| A status change on task 1 shifts task 2 | ✅ task 1 DONE early → task 2 = its 07:30 slot + 140.5 min |
+| Model hot-swap | ✂️ cut (24 h); a sha mismatch at load is still rejected |
+| Anomaly: window at the top of the stub score → R23 INFO, no AUDIO, review queue | ✅ 13 L/h vs a 7.6–8.4 L/h baseline → flagged, top feature `fuel_per_productive_h`, R23 INFO `[VISUAL]`, in `review_queue`, outbox P2. Live hour boundary → window persisted with alert counts and scored automatically. No model → no score, R23 UNKNOWN, `anomaly UNAVAILABLE` |
+| Lessons: second R03 in 7 days → assignment; active → 409; engine off → 200 + WS `lesson {deliverable:true}` | ✅ `test_seed_at_0030_finds_tasks_and_second_offence` (**user request**: seeded at 00:30 → both tasks on today's shift with ETAs; the live unsafe exit → "R03 ×2 in 7 days"; GET/complete 409 while running; engine OFF → WS lesson true; complete 200 + P2) |
+| Replay from the unsafe-exit fixture has the real bucket height and failed checks | ✅ prompt: "…bucket at 2.1 m and these checks failing: ENGINE_RUNNING, HYD_UNLOCKED, IMPLEMENT_RAISED…"; `state_vector` = the R03 inputs |
+| Scorecard | ✂️ cut (24 h) |
+| Live compose smoke | ✅ tasks show ETAs (09:50 / 15:35, generic, since `ml_runtime` isn't installed yet); `ws_probe --scenario unsafe_exit --expect nudge:R03:FULLSCREEN --expect lesson:deliverable=True` passes; lesson reason "R03 ×2 in 7 days"; 0 errors in the logs |
+| Full suite | ✅ **243 passed, 2 skipped**; ruff clean; OpenAPI + TS regenerated (20 files) |
+
+### Decisions / deviations
+1. The **PAUSED exclusion** in unplanned-stop minutes isn't built: task status history isn't stored, so every engine-off / operator-out stop after `actual_start` counts.
+2. **Truck-count trigger** skipped: tasks are cloud-authoritative and the inbox is cut, so the edge has no source for truck changes.
+3. Hourly windows keep the operator of their first sample and aren't closed on shift change. The open hour isn't snapshotted (`ponytail:` note in the engine).
+4. The demo task 1 now starts 07:15 (it was 06:15, before the 07:00 shift).
+5. `tests/unit/test_engine_scenarios.py` now filters its DB checks to the fixture day, since the seed adds demo history. The Phase 5 00:30 test moved its "no shift yet" path to WL001, because the seed now plans the shift for the clock's date.
+6. `/system/status` gains `model_detail`. WS `eta` and `lesson` payloads carry `ts` (I6).
+
+### Open items
+- **P1:** deliver `ml_runtime` + the eta / anomaly model files + pinned library versions (D24), then register them (RUNBOOK).
+- **P3:** the real `lessons.json` (Q7) replaces the stub.
+- Not committed (asked before committing).
+
+---
+
 ## Phase 5 — Operator services: auth, shift, readiness, incidents, hazards + geofencing ✅ (24 h scope) (2026-09-24)
 
 ### Scope cut (user decision, applies to the rest of the build)

@@ -49,6 +49,10 @@ def persist(session: Session, out: Out) -> None:
         repo.upsert_exit_event(session, row)
     for _action, alert in out.alerts:
         repo.upsert_safety_alert(session, alert)
+    for row in out.minutes:
+        repo.insert_telemetry_minute(session, row)
+    for row in out.windows:
+        repo.upsert_telemetry_window(session, row)
 
 
 def load_snapshot(session: Session, machine_id: str) -> dict | None:
@@ -67,8 +71,10 @@ class EngineRunner:
         snapshot: dict | None = None,
         tick_s: float = 1.0,
         sink: Broadcaster | None = None,
+        on_window: Callable[[str, dict], None] | None = None,
     ):
         self.make_engine, self.bus, self.writer = make_engine, bus, writer
+        self.on_window = on_window  # closed hourly window (persisted) -> anomaly job
         self.clock = clock or MonotonicClock()
         self.tick_s = tick_s
         self.engine = make_engine()
@@ -195,6 +201,9 @@ class EngineRunner:
         if out.telemetry is not None:
             self.writer.submit_telemetry(out.telemetry)
         await asyncio.wrap_future(self.writer.submit(lambda s: persist(s, out)))
+        if self.on_window:
+            for window in out.windows:
+                self.on_window(self.engine.machine_id, window)
         mid, pub = self.engine.machine_id, self.sink.publish
         if out.telemetry_v1 is not None:
             await pub(mid, "telemetry", out.telemetry_v1)

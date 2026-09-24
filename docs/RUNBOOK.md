@@ -38,6 +38,13 @@ If an older DB fails with `DB schema vN is older than vM`, delete it and let the
 - Schema v3 (Phase 5): an older DB is refused at start. Delete it and let the seed recreate it: `docker compose -f infra/docker-compose.yml run --rm --no-deps --entrypoint rm edge-api -f /data/edge.db /data/edge.db-wal /data/edge.db-shm`.
 - Retained hazards: `docker exec operator-companion-mosquitto-1 mosquitto_sub -t 'cat/SITE-PUN-01/hazards' -C 1 -v`.
 
+## Models, ETA, lessons (Phase 6)
+
+- P1 hand-off: install P1's `ml_runtime` in the image, then `tools/register_model.py <eta|anomaly_EXCAVATOR|anomaly_WHEEL_LOADER> <version> <file>` against the edge DB (`MODELS_DIR`, compose `/data/models`), and restart edge-api. `/system/status` → `models` + `model_detail` (loaded versions or the rejection reason). Without it: ETAs are "Estimate (generic)" and anomaly scoring is off (R23 UNKNOWN). Nothing blocks.
+- Demo data is seeded relative to now: today's tasks sit on today's shift (offsets from `SHIFT_START`), and OP1001 has one earlier unsafe exit 2 days back, so the live one reads "R03 ×2 in 7 days".
+- Lessons: `data/lessons/lessons.json` (a stub until P3 delivers). They are served only with the engine OFF or after shift end (`409` otherwise, I5).
+- Schema v4: delete the old DB as in Phase 5.
+
 ## Scenarios
 
 - `GET /sim/scenarios`, `POST /sim/scenario {"name": "unsafe_exit"}` (admin token).

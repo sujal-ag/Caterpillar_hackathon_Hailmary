@@ -1,0 +1,11 @@
+# Soil / material fill factors (HLD §6.7, "Cat Performance Handbook-style"). The generic ETA
+# fallback (plan.md §5.6) uses the midpoint of each range. The task.v1 soil enum is finer
+# than the HLD table: CLAY_DRY and CLAY_WET are both mapped to the HLD's "hard tough clay"
+# range (assumption), and CLAY_WET adds the HLD "Wet clay: +10% cycle time".
+hld_ref: "§6.7"
+soils:
+  LOAM:          {fill_factor_low: 1.00, fill_factor_high: 1.10, cycle_time_factor: 1.0}   # "loam / sandy clay"
+  SAND_GRAVEL:   {fill_factor_low: 0.95, fill_factor_high: 1.10, cycle_time_factor: 1.0}
+  CLAY_DRY:      {fill_factor_low: 0.80, fill_factor_high: 0.90, cycle_time_factor: 1.0, assumption: true}
+  CLAY_WET:      {fill_factor_low: 0.80, fill_factor_high: 0.90, cycle_time_factor: 1.10, assumption: true}
+  ROCK_BLASTED:  {fill_factor_low: 0.60, fill_factor_high: 0.75, cycle_time_factor: 1.0}   # "well-blasted rock"

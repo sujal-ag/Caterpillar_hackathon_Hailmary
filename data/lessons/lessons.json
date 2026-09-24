@@ -1,0 +1,119 @@
+{
+  "schema": "lesson.v1",
+  "version": "stub-0",
+  "lessons": [
+    {
+      "lesson_id": "L-SEATBELT",
+      "title_key": "lesson.L-SEATBELT.title",
+      "format": "CARD",
+      "duration_s": 60,
+      "machine_family": "ANY",
+      "trigger_rule_ids": [
+        "R01"
+      ],
+      "tags": [
+        "stub"
+      ],
+      "content_json": {
+        "stub": true,
+        "body": "STUB — P3 replaces this text (plan.md §1.3, Q7)."
+      },
+      "media_path": null,
+      "language": "en",
+      "version": 1
+    },
+    {
+      "lesson_id": "L-SAFE-SHUTDOWN",
+      "title_key": "lesson.L-SAFE-SHUTDOWN.title",
+      "format": "REPLAY",
+      "duration_s": 60,
+      "machine_family": "ANY",
+      "trigger_rule_ids": [
+        "R03"
+      ],
+      "tags": [
+        "stub"
+      ],
+      "content_json": {
+        "stub": true,
+        "body": "STUB — P3 replaces this text (plan.md §1.3, Q7)."
+      },
+      "media_path": null,
+      "language": "en",
+      "version": 1
+    },
+    {
+      "lesson_id": "L-BELT-BYPASS",
+      "title_key": "lesson.L-BELT-BYPASS.title",
+      "format": "CARD",
+      "duration_s": 60,
+      "machine_family": "ANY",
+      "trigger_rule_ids": [
+        "R07"
+      ],
+      "tags": [
+        "stub"
+      ],
+      "content_json": {
+        "stub": true,
+        "body": "STUB — P3 replaces this text (plan.md §1.3, Q7)."
+      },
+      "media_path": null,
+      "language": "en",
+      "version": 1
+    },
+    {
+      "lesson_id": "L-PROXIMITY",
+      "title_key": "lesson.L-PROXIMITY.title",
+      "format": "CARD",
+      "duration_s": 60,
+      "machine_family": "ANY",
+      "trigger_rule_ids": [
+        "R12"
+      ],
+      "tags": [
+        "stub"
+      ],
+      "content_json": {
+        "stub": true,
+        "body": "STUB — P3 replaces this text (plan.md §1.3, Q7)."
+      },
+      "media_path": null,
+      "language": "en",
+      "version": 1
+    },
+    {
+      "lesson_id": "L-GENERIC-TILT",
+      "title_key": "lesson.L-GENERIC-TILT.title",
+      "format": "CARD",
+      "duration_s": 60,
+      "machine_family": "ANY",
+      "trigger_rule_ids": [],
+      "tags": [
+        "stub"
+      ],
+      "content_json": {
+        "stub": true,
+        "body": "STUB — P3 replaces this text (plan.md §1.3, Q7)."
+      },
+      "media_path": null,
+      "language": "en",
+      "version": 1,
+      "generic_for_subject": "TILT"
+    }
+  ],
+  "replay_templates": {
+    "R03": {
+      "prompt": "STUB — P3 replaces. You got out with the bucket at {bucket_height_m} m and these checks failing: {failed_checks}. What comes first?",
+      "options": [
+        "STUB option A",
+        "STUB option B",
+        "STUB option C",
+        "STUB option D"
+      ],
+      "correct_option": 0,
+      "explanation": "STUB — P3 replaces this text (plan.md §1.3, Q7).",
+      "doc_reference": null
+    }
+  }
+}

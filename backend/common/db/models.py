@@ -205,6 +205,8 @@ class Task(SQLModel, table=True):
     pred_eta: str | None = None
     pred_drivers: list | None = _json_col()
     model_version: str | None = None
+    pred_label: str | None = None  # "Estimate (generic)" / "Estimate (cohort)" (task.v1)
+    pred_rate_source: str | None = None  # OPERATOR | COHORT | TASK_TYPE (ml_features.md)
 
 
 # ---------------------------------------------------------------------------
@@ -330,6 +332,8 @@ class TelemetryWindow(SQLModel, table=True):
     alert_count: int | None = None
     critical_count: int | None = None
     anomaly_score: float | None = None
+    anomaly_flagged: bool | None = None  # score >= the model's top-3% threshold: review queue
+    anomaly_top_features: list | None = _json_col()  # model explanation (HLD §7.1)
     state_class_mode: str | None = None
     review_label: str | None = None  # TRUE_POSITIVE | FALSE_POSITIVE | null (D11)
 
@@ -590,6 +594,7 @@ class Lesson(SQLModel, table=True):
     media_path: str | None = None
     language: str = "en"
     version: int = 1
+    generic_for_subject: str | None = None  # lesson.v1: fallback for a rule subject (§4.11)
 
 
 class Scenario(SQLModel, table=True):
@@ -619,6 +624,7 @@ class LessonAssignment(SQLModel, table=True):
     completed_at: str | None = None
     score: int | None = None
     attempts: int = 0
+    scenario_id: str | None = Field(default=None, foreign_key="scenario.scenario_id")  # Replay
 
 
 class OperatorScorecard(SQLModel, table=True):
@@ -733,7 +739,10 @@ class SimLabelLog(SQLModel, table=True):
 # DB must be deleted and re-seeded (session.create_all refuses to run on one).
 # v2 (Phase 4): operator.role.
 # v3 (Phase 5): shift.handover_note, readiness_check.reasons.
-SCHEMA_VERSION = 3
+# v4 (Phase 6): lesson.generic_for_subject, lesson_assignment.scenario_id,
+#     telemetry_window.anomaly_flagged + anomaly_top_features, task.pred_label +
+#     pred_rate_source.
+SCHEMA_VERSION = 4
 
 
 class SchemaVersion(SQLModel, table=True):

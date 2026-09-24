@@ -32,6 +32,7 @@ class SystemStatus(BaseModel):
     mqtt: dict
     sync: dict
     models: dict
+    model_detail: dict  # loaded versions + why a model is UNAVAILABLE (Phase 6)
     sim: dict
     auth_disabled: bool
     rules_version: int
@@ -75,6 +76,7 @@ async def system_status(
         },
         sync={"online": False, "pending_by_priority": counts, "queue_depth": sum(counts.values())},
         models=ml_status(),
+        model_detail=rt.ml.versions(),
         sim={"mode": rt.settings.sim_mode, "running": rt.replayer.current},
         auth_disabled=rt.settings.auth_disabled,
         rules_version=rt.ruleset.version,

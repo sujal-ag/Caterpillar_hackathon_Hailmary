@@ -31,4 +31,11 @@ Backend fallbacks (always available, no P1 code needed):
 - ETA → `generic_eta()` = task-type base-rate midpoint × soil fill factor (HLD §6.7). `p90 = 1.4 × p50`. `model_version: "generic"`, label `"Estimate (generic)"`.
 - Anomaly → no score. `health.models.anomaly = "UNAVAILABLE"`. Rules keep running.
 
-Until P1 delivers, a stub in `backend/tests/stubs/ml_runtime/` implements this interface (Phase 6).
+Until P1 delivers, a stub in `backend/tests/stubs/ml_runtime/` implements this interface (Phase 6, test-only).
+
+## Hand-off (Phase 6)
+1. `pip install` P1's `ml_runtime` into the edge image (pinned libs, D24).
+2. Register each model file (copies it to `MODELS_DIR/{name}/{version}`, records sha256, marks it active):
+   `EDGE_DB_PATH=… .venv/bin/python tools/register_model.py <name> <version> <file>`
+   Names: `eta`, `anomaly_EXCAVATOR`, `anomaly_WHEEL_LOADER`.
+3. Restart edge-api (hot-swap is cut). `/system/status` → `models` (LOCAL/UNAVAILABLE) and `model_detail` (versions, and why a model was rejected).

@@ -1,7 +1,9 @@
-# Demo tasks for "today". Times are offsets from site-local midnight; seed.py resolves them
-# against the actual seed date so this file never goes stale.
+# Demo tasks, attached by seed.py to the machine's shift for the seed date (the current
+# shift). Times are minutes after that shift's planned start (SHIFT_START), so the file
+# never goes stale and follows SHIFT_START/SHIFT_END. With the default 07:00 start:
+# task 1 07:15–10:30, task 2 13:15–15:30.
 - task_id_suffix: "1"
-  shift_id: null            # filled in by seed.py: today's EXC001 day shift
+  shift_id: null            # filled in by seed.py: the machine's shift for the seed date
   machine_id: EXC001
   operator_id: OP1001
   task_type_id: TRUCK_LOAD
@@ -14,8 +16,8 @@
   trucks_assigned: 3
   truck_capacity_t: 16
   priority: 2
-  scheduled_start_offset_min: 375   # 06:15
-  scheduled_end_offset_min: 570     # 09:30
+  start_after_shift_min: 15
+  end_after_shift_min: 210
   status: SCHEDULED
 - task_id_suffix: "2"
   shift_id: null
@@ -31,6 +33,6 @@
   trucks_assigned: 3
   truck_capacity_t: 16
   priority: 2
-  scheduled_start_offset_min: 795   # 13:15
-  scheduled_end_offset_min: 930     # 15:30
+  start_after_shift_min: 375
+  end_after_shift_min: 510
   status: SCHEDULED

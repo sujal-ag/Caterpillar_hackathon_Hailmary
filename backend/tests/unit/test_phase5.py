@@ -125,17 +125,17 @@ def test_login_at_0030_creates_the_new_dates_shift_on_start(tmp_path):
     app, _ = app_at(tmp_path, at_0030, shift_start="19:00", shift_end="07:00")
     with TestClient(app) as client:
         r = client.post(
-            "/auth/login", json={"badge_id": "EMP1001", "pin": "1234", "machine_id": "EXC001"}
+            "/auth/login", json={"badge_id": "EMP1001", "pin": "1234", "machine_id": "WL001"}
         )
         body = r.json()
-        assert body["shift"] is None  # no shift seeded for the new date
+        assert body["shift"] is None  # the seed plans EXC001/EXC002 only: none for WL001
         assert claims(body["token"])["shift_id"] is None
         assert parse_iso(body["expires_at"]) > at_0030
         tok = body["token"]
         r = client.post("/shift/start", json={}, headers=auth(tok))
         assert r.status_code == 200, r.text
         shift = r.json()["shift"]
-        assert shift["shift_id"] == shift_id_for("EXC001", tomorrow)
+        assert shift["shift_id"] == shift_id_for("WL001", tomorrow)
         assert shift["status"] == "ACTIVE" and shift["operator_id"] == "OP1001"
         # overnight window from SHIFT_START/SHIFT_END: 19:00 that date -> 07:00 the next day
         assert parse_iso(shift["planned_start"]).astimezone(SITE_TZ).hour == 19
@@ -143,9 +143,9 @@ def test_login_at_0030_creates_the_new_dates_shift_on_start(tmp_path):
             hours=12
         )
         # a fresh login now binds to the ACTIVE shift
-        again = login_body(client, "EMP1001", "1234", "EXC001")
+        again = login_body(client, "EMP1001", "1234", "WL001")
         assert again["shift"]["shift_id"] == shift["shift_id"]
-        assert client.app.state.rt.runners["EXC001"].engine.ctx.shift_id == shift["shift_id"]
+        assert client.app.state.rt.runners["WL001"].engine.ctx.shift_id == shift["shift_id"]
 
 
 def login_body(client, badge, pin, machine=None):
@@ -168,8 +168,8 @@ def test_auth_roles_and_unknown_badge(env):
 
 
 def test_seed_assigns_operator_b_to_exc002(env):
-    client, *_ = env
-    today = datetime.now(SITE_TZ).date()
+    client, _, clock, _ = env
+    today = clock.now.astimezone(SITE_TZ).date()  # the seed is anchored to the runtime clock
     (row,) = rows(client, Shift, Shift.shift_id == shift_id_for("EXC002", today))
     assert row.operator_id == "OP1002" and row.status == "PLANNED"
 

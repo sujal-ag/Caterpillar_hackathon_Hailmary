@@ -116,7 +116,7 @@ def test_critical_rules_always_audible():
 
 def test_stretch_and_cut_rules_disabled():
     # D21 stretch (R19, R22) + the 24 h scope cut (PROGRESS.md Phase 5).
-    disabled = {"R19", "R22"} | {"R08", "R09", "R15", "R23", "R24"}
+    disabled = {"R19", "R22"} | {"R08", "R09", "R15", "R24"}
     enabled = {r["id"]: r["enabled"] for r in RULES["rules"]}
     assert {k for k, v in enabled.items() if not v} == disabled
 
@@ -134,3 +134,16 @@ def test_message_keys_and_audio_clips_exist():
         assert spec["message_key"] in EN, clip
         assert spec["text"] == EN[spec["message_key"]], clip
     assert set(RULES["policy"]["tone_patterns"].values()) == set(TONES) <= tones.keys()
+
+
+def test_lesson_catalogue_validates_and_covers_the_lesson_rules():
+    # data/lessons/lessons.json is P3's (a stub until Q7 is answered); it must stay lesson.v1.
+    doc = json.loads((CONTRACTS.parent / "data" / "lessons" / "lessons.json").read_text())
+    errors = list(Draft202012Validator(SCHEMAS["lesson.v1"]).iter_errors(doc))
+    assert not errors, [e.message for e in errors]
+    covered = {r for les in doc["lessons"] for r in les["trigger_rule_ids"]}
+    generic = {les.get("generic_for_subject") for les in doc["lessons"]}
+    for r in RULES["rules"]:
+        if r["lesson_trigger"] and r["enabled"]:
+            assert r["id"] in covered or r["subject"] in generic, r["id"]
+    assert "R03" in doc["replay_templates"]  # the demo's Replay from the unsafe exit

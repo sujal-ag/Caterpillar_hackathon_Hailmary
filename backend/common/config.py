@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     media_max_bytes: int = 10 * 1024 * 1024  # per file
     hazard_expiry_check_s: float = 60.0
 
+    # prediction + learning (plan.md Phase 6)
+    models_dir: str = "data/models"  # MODELS_DIR/{model_name}/{version} (model_registry)
+    lessons_path: Path = REPO_ROOT / "data" / "lessons" / "lessons.json"  # lesson.v1 (P3)
+
     # simulator control (contracts/sim_control.md)
     sim_mode: str = "proxy"  # proxy | replay
     sim_control_url: str = ""

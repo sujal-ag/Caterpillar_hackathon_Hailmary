@@ -24,6 +24,7 @@ from common.timeutil import SITE_TZ, to_site_iso
 from edge.api.auth import Principal, require
 from edge.api.shift import machine_for
 from edge.ingest.env import heat_level
+from edge.ml import eta_service
 from edge.readiness.score import score
 
 router = APIRouter(tags=["readiness"])
@@ -128,4 +129,5 @@ async def submit(
     data, active = await rt.write(lambda s: _store(s, rt, mid, who, body, now, env))
     if active:
         await runner.call(lambda e, t: e.set_readiness(data["rating"], t))
+        await rt.safe(eta_service.recompute(rt, mid, "readiness"))  # an ETA feature
     return ReadinessOut(**data)

@@ -18,6 +18,7 @@ from common.db.models import ReadinessCheck, Shift
 from common.shifts import current_shift, planned_window, shift_id_for
 from common.timeutil import SITE_TZ, to_site_iso
 from edge.api.auth import Principal, require
+from edge.ml import eta_service
 
 router = APIRouter(tags=["shift"])
 
@@ -117,6 +118,7 @@ async def shift_start(
     shift = await rt.write(lambda s: _start(s, rt, mid, who, now, hours))
     rating = shift.pop("_readiness", None)
     await runner.call(lambda e, t: e.set_shift(shift["operator_id"], shift["shift_id"], rating, t))
+    await rt.safe(eta_service.recompute(rt, mid, "shift_start"))  # never blocks the start
     note = await asyncio.to_thread(_note, rt, mid)
     return ShiftOut(shift=shift, previous_handover_note=note, as_of=to_site_iso(now))
 

@@ -35,6 +35,7 @@ from edge.ingest.env import CurrentEnv, build_environment_obs
 from edge.ingest.events import Seq, event_type_for_switch, make_event
 from edge.ingest.idle import IdleTracker
 from edge.ingest.normalise import normalise, validate_raw
+from edge.ingest.rollup import RollupAccumulator
 from edge.ingest.stale import StaleTracker
 from edge.ingest.switches import SWITCH_NAMES, Debouncer
 from edge.ingest.telemetry import to_telemetry_v1
@@ -55,11 +56,14 @@ class Out:
     env_obs: list[dict] = field(default_factory=list)
     sim_labels: list[dict] = field(default_factory=list)
     nudges: list[dict] = field(default_factory=list)  # nudge.v1
+    minutes: list[dict] = field(default_factory=list)  # telemetry_minute rows (closed)
+    windows: list[dict] = field(default_factory=list)  # telemetry_window rows (closed hours)
     state: dict | None = None  # state.v1, only when it changed
 
     def changed(self) -> bool:
         return bool(
-            self.events
+            self.windows
+            or self.events
             or self.alerts
             or self.exit_rows
             or self.idle_episodes
@@ -94,6 +98,11 @@ class MachineEngine:
         self.alerts = AlertManager(self.policy["audio_budget_s"])
         self.classifier = Classifier(self.policy["class_hysteresis_s"])
         self.disabled_rules: dict[str, str] = {}  # rule_id -> error (visible in /system/status)
+        # Hourly windows (HLD §6.10) feed the anomaly job (Phase 6). ponytail: the open hour
+        # isn't snapshotted (a crash restarts it from the next frame) and a window keeps the
+        # operator of its first sample; close windows on shift change if attribution matters.
+        self.rollup = RollupAccumulator(machine_id)
+        self._hour_alerts = {"alert_count": 0, "critical_count": 0, "warning_plus": False}
         self.dropped_frames = 0
         self.state: dict | None = None
         self._state_key = None
@@ -164,6 +173,12 @@ class MachineEngine:
             out.idle_episodes.append(
                 {**episode, "machine_id": self.machine_id, "operator_id": ctx.operator_id}
             )
+            self.rollup.add_idle_episode(episode)  # before the sample that may close its hour
+        minute, window = self.rollup.add_sample(t)
+        if minute:
+            out.minutes.append(minute)
+        if window:
+            out.windows.append({**window, **self._take_hour_alerts()})
         out.telemetry = t
         self.evaluate(now, out)
         fresh = self.policy["proximity_fresh_s"]
@@ -238,6 +253,23 @@ class MachineEngine:
         out = Out()
         self.evaluate(now, out)
         return out
+
+    def set_anomaly(self, anomaly: dict | None, now: datetime) -> Out:
+        """Latest scored hourly window {window_id, score, threshold_top3pct} -> R23."""
+        self.ctx.anomaly = anomaly
+        out = Out()
+        self.evaluate(now, out)
+        return out
+
+    def _take_hour_alerts(self) -> dict:
+        h = self._hour_alerts
+        row = {
+            "alert_count": h["alert_count"],
+            "critical_count": h["critical_count"],
+            "safety_alert_triggered": h["warning_plus"],  # any WARNING+ in the hour (§6.10)
+        }
+        self._hour_alerts = {"alert_count": 0, "critical_count": 0, "warning_plus": False}
+        return row
 
     def set_hazards(self, pins: list[dict], now: datetime) -> Out:
         """New retained hazard list. A zone whose pin is gone (resolved/expired/deleted) is
@@ -314,7 +346,14 @@ class MachineEngine:
                     error=repr(exc),
                     traceback=traceback.format_exc(),
                 )
-        out.alerts.extend(self.alerts.process(results, ctx, now))
+        changes = self.alerts.process(results, ctx, now)
+        out.alerts.extend(changes)
+        for action, alert in changes:
+            if action == "RAISED":
+                h = self._hour_alerts
+                h["alert_count"] += 1
+                h["critical_count"] += alert["level"] == "CRITICAL"
+                h["warning_plus"] |= RANK[alert["level"]] >= RANK["WARNING"]
         for id_ in self.alerts.nudge_due:
             entry = self.alerts.active[id_]
             out.nudges.append(

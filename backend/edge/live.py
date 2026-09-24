@@ -46,6 +46,12 @@ async def sync_status(rt) -> dict:
     }
 
 
+def _current_eta(rt, machine_id: str) -> dict | None:
+    from edge.ml.eta_service import current_eta
+
+    return current_eta(rt, machine_id)
+
+
 async def snapshot(rt, machine_id: str) -> dict:
     engine = rt.runners[machine_id].engine
     return {
@@ -54,5 +60,5 @@ async def snapshot(rt, machine_id: str) -> dict:
         "alerts": [dict(a) for a in engine.alerts.active_records()],
         "hazards": await hazards(rt),
         "sync": await sync_status(rt),
-        "eta": None,  # Phase 6
+        "eta": await asyncio.to_thread(_current_eta, rt, machine_id),
     }
