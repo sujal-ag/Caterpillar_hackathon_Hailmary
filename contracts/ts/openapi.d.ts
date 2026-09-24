@@ -229,6 +229,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/manager/operators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Operators
+         * @description Every operator with today's shift, task counts, 7-day alert count, pending lessons and
+         *     the latest readiness rating (shown for context only, I10).
+         */
+        get: operations["operators_manager_operators_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/manager/operators/{operator_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Operator Detail */
+        get: operations["operator_detail_manager_operators__operator_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/manager/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Options
+         * @description Pick-lists for the assign form: machines, task types, soils, known zones.
+         */
+        get: operations["options_manager_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/manager/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Day Tasks
+         * @description Every machine's tasks for one site-local day (default today), plan vs actual.
+         */
+        get: operations["day_tasks_manager_tasks_get"];
+        put?: never;
+        /**
+         * Assign
+         * @description Create a task and assign it to an operator on a machine (outbox P1, I7).
+         */
+        post: operations["assign_manager_tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/manager/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Reassign
+         * @description Reassign (operator/machine) or reschedule a task that has not started.
+         */
+        patch: operations["reassign_manager_tasks__task_id__patch"];
+        trace?: never;
+    };
     "/state/current": {
         parameters: {
             query?: never;
@@ -875,6 +977,53 @@ export interface components {
             /** Rules Version */
             rules_version: number;
         };
+        /** TaskIn */
+        TaskIn: {
+            /** Operator Id */
+            operator_id: string;
+            /** Machine Id */
+            machine_id: string;
+            /** Task Type Id */
+            task_type_id: string;
+            /** Zone Id */
+            zone_id?: string | null;
+            /** Planned Quantity */
+            planned_quantity: number;
+            /** Soil Type */
+            soil_type?: string | null;
+            /**
+             * Priority
+             * @default 3
+             */
+            priority: number;
+            /**
+             * Scheduled Start
+             * Format: date-time
+             */
+            scheduled_start: string;
+            /**
+             * Scheduled End
+             * Format: date-time
+             */
+            scheduled_end: string;
+        };
+        /** TaskPatch */
+        TaskPatch: {
+            /** Operator Id */
+            operator_id?: string | null;
+            /** Machine Id */
+            machine_id?: string | null;
+            /** Zone Id */
+            zone_id?: string | null;
+            /** Planned Quantity */
+            planned_quantity?: number | null;
+            /** Priority */
+            priority?: number | null;
+            /** Scheduled Start */
+            scheduled_start?: string | null;
+            /** Scheduled End */
+            scheduled_end?: string | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1321,6 +1470,189 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CompleteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    operators_manager_operators_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    operator_detail_manager_operators__operator_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    options_manager_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    day_tasks_manager_tasks_get: {
+        parameters: {
+            query?: {
+                /** @description site-local */
+                date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_manager_tasks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reassign_manager_tasks__task_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskPatch"];
             };
         };
         responses: {

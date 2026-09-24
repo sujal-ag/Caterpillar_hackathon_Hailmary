@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { setTaskStatus } from '../services/backendService'
+import { setTaskStatus, taskBadge } from '../services/backendService'
 
-const BADGE = { IN_PROGRESS: ['in-progress', 'In Progress'], DONE: ['done', 'Complete'], PAUSED: ['pending', 'Paused'] }
 const NEXT = {
   SCHEDULED: [['IN_PROGRESS', 'Start']],
   BACKLOG: [['IN_PROGRESS', 'Start']],
@@ -35,7 +34,7 @@ export default function Tasks({ tasks = [], onChanged, onError }) {
 
       <div className="task-list">
         {tasks.map((task) => {
-          const [cls, label] = BADGE[task.status] || ['pending', 'Scheduled']
+          const [cls, label] = taskBadge(task.status)
           return (
             <div key={task.id} className="panel panel-light task-card">
               <div className="task-row-top">

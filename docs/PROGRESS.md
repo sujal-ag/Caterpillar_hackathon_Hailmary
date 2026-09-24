@@ -4,6 +4,56 @@ One entry per phase (plan.md §0 rule 3): what was built, gate results, deviatio
 
 ---
 
+## Manager UI + task assignment (user request, outside the phase order) (2026-09-24)
+
+The user asked for a supervisor screen and backend routes to assign tasks to operators and view their data, using the existing design. This is a small edge-side slice of Phase 10 (HLD §4.15, §9.2 screens 4 and 7). The "edge-side fleet API" cut from Phase 5 is reversed only for this slice.
+
+### Built
+- **`backend/edge/api/manager.py`** (every route requires `supervisor`):
+  - `GET /manager/operators`
+  - `GET /manager/operators/{id}`
+  - `GET /manager/options`
+  - `GET /manager/tasks?date=`
+  - `POST /manager/tasks` (assign)
+  - `PATCH /manager/tasks/{id}` (reassign or reschedule)
+  - The contract is in `contracts/rest.md`. `openapi.json` and the TS types are regenerated.
+- **Where an assigned task goes:** it is added to the machine's day shift `SH-YYYYMMDD-{machine}-D`, which is created PLANNED if it is missing. The operator therefore sees it through the existing `GET /tasks` once they log onto that machine. There is no new table and no schema bump.
+- **Assignment checks.** Each check below returns 409:
+  - The machine's shift that day belongs to another operator (HLD §6.6: one operator per machine per day).
+  - The shift is CLOSED.
+  - The assignee is not an operator.
+  - The assignee is not certified for the machine family.
+  - The assignee's certification has expired.
+  - The task type is not done with that machine model.
+- **Other behaviour:**
+  - Readiness is shown to the supervisor but never checked (I10).
+  - `pin_hash` and `persona` are never returned (I9).
+  - Task and shift rows go to the outbox in the same unit of work (I7, P1).
+  - After each write, the ETAs are re-estimated and a WS `eta` is pushed, so the operator's screen reloads its task list live.
+- **Frontend:**
+  - Supervisor and admin logins now open a manager shell (`Manager.jsx`) instead of the machine screen, and do not start a shift. The shell has a **Team** tab (`ManagerTeam.jsx`: operator list and detail with tasks, alerts, lessons and readiness history) and a **Tasks** tab (`ManagerTasks.jsx`: the day's plan per machine, with Reassign and Move to backlog).
+  - Assigning and reassigning use a bottom sheet (`AssignTaskModal.jsx`).
+  - Only existing `index.css` classes are used; there is no new CSS.
+  - The shell polls every 10 s (HLD §4.15).
+  - A "Machine view" / "Manager" header toggle keeps the old machine screen and sim controls reachable for the demo.
+
+### Gates
+| Check | Result |
+|---|---|
+| `pytest tests/unit/test_manager.py` | ✅ 4 passed. Covered: operator token gets 403, I9 fields hidden, assign reaches the operator's `/tasks` and the WS `eta`, outbox P1, every 409/404/422 path, a PLANNED shift is created for a new day, reassign across machines, and a started task is locked. |
+| Full suite | ✅ 254 passed, 2 skipped. `ruff check` and `ruff format --check` are clean. |
+| `gen_ts.sh` and `export_openapi.py` | ✅ `TS types OK: 20 files` |
+| Frontend `npm run lint` and `npm run build` | ✅ clean |
+| Live API smoke test on an isolated instance (port 8001, scratch DB) | ✅ assign returned 201 with an ETA; a conflicting operator returned 409 `EXC001 is planned for OP1001 on …` |
+| UI in a browser | ⚠ not verified by Claude: no browser tools in this session. Needs a manual check. |
+
+### Deviations
+1. The route prefix is `/manager/*` rather than the planned `/fleet/*`, because these routes are edge-only and have no `source: edge|cloud` field. If Phase 10 is built, `/fleet/*` can wrap them.
+2. The task type cannot be changed by PATCH. Delete-and-reassign is also not built; the way to drop a task is `status: BACKLOG` through the existing `/tasks/{id}/status`.
+3. There is no dedicated `supervisor` user in the seed. SUP001 is `admin`, which includes the supervisor role.
+
+---
+
 ## Phase 8 — Alarm explainer + RAG + LLM ✅ (24 h scope) (2026-09-24)
 
 ### Scope

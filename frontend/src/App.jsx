@@ -12,6 +12,7 @@ import HazardReportModal from './components/HazardReportModal'
 import ReadinessModal from './components/ReadinessModal'
 import AlertWhyModal from './components/AlertWhyModal'
 import SimControlBar from './components/SimControlBar'
+import Manager from './components/Manager'
 import {
   AUTH_EXPIRED_EVENT,
   acknowledgeAlert,
@@ -22,6 +23,7 @@ import {
   getAuthToken,
   getSession,
   getStoredMachineId,
+  isManager,
   login,
   normalizeAlert,
   normalizeTask,
@@ -84,6 +86,8 @@ export default function App() {
   const [tasks, setTasks] = useState([])
   const [lessonTick, setLessonTick] = useState(0)
   const [notice, setNotice] = useState('')
+  const [machineView, setMachineView] = useState(false)
+  const managerView = Boolean(session && isManager(session.role) && !machineView)
 
   const [exitGuardOpen, setExitGuardOpen] = useState(false)
   const [proximity, setProximity] = useState(null) // R12 FULLSCREEN nudge slots
@@ -97,6 +101,7 @@ export default function App() {
   const logout = useCallback(() => {
     clearSession()
     setSession(null)
+    setMachineView(false)
     setLive(EMPTY_LIVE)
     setTasks([])
     setExitGuardOpen(false)
@@ -134,16 +139,16 @@ export default function App() {
 
   // REST first paint + tasks; the WebSocket snapshot then keeps it current.
   useEffect(() => {
-    if (!session) return undefined
+    if (!session || managerView) return undefined
     fetchSnapshot(machineId).then(applySnapshot).catch((e) => console.warn('Snapshot unavailable:', e.message))
     // eslint-disable-next-line react-hooks/set-state-in-effect -- setState runs after the fetch resolves
     loadTasks()
     const interval = setInterval(loadTasks, 60000)
     return () => clearInterval(interval)
-  }, [session, machineId, applySnapshot, loadTasks])
+  }, [session, managerView, machineId, applySnapshot, loadTasks])
 
   useEffect(() => {
-    if (!session) return undefined
+    if (!session || managerView) return undefined
     const client = new LiveWebSocketClient({
       machineId,
       onStatusChange: setWsStatus,
@@ -186,7 +191,7 @@ export default function App() {
     })
     client.connect()
     return () => client.disconnect()
-  }, [session, machineId, applySnapshot, loadTasks, logout])
+  }, [session, managerView, machineId, applySnapshot, loadTasks, logout])
 
   const ackAlert = async (alertId) => {
     try {
@@ -214,9 +219,10 @@ export default function App() {
     return (
       <AuthScreen
         onUnlock={async ({ badgeId, pin, machineId: chosen }) => {
-          await login(badgeId, pin, chosen)
+          const { operator } = await login(badgeId, pin, chosen)
           setMachineId(chosen)
           setSession(getSession())
+          if (isManager(operator.role)) return // a supervisor plans; they don't start the machine's shift
           try {
             const res = await startShift(chosen)
             setNotice(res.previous_handover_note ? `Handover note: ${res.previous_handover_note}` : '')
@@ -227,6 +233,10 @@ export default function App() {
         }}
       />
     )
+  }
+
+  if (managerView) {
+    return <Manager session={session} machineId={machineId} onLogout={logout} onMachineView={() => setMachineView(true)} />
   }
 
   const state = live.state
@@ -254,7 +264,11 @@ export default function App() {
               {!isLive && live.asOf ? ` · as of ${new Date(live.asOf).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}` : ''}
             </span>
           </div>
-          <button type="button" className="header-button" onClick={handleEndShift}>End shift</button>
+          {isManager(session.role) ? (
+            <button type="button" className="header-button" onClick={() => setMachineView(false)}>Manager</button>
+          ) : (
+            <button type="button" className="header-button" onClick={handleEndShift}>End shift</button>
+          )}
           <button type="button" className="header-button" onClick={logout}>Switch</button>
         </div>
       </header>

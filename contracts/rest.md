@@ -49,6 +49,12 @@ Conventions:
 | POST | `/sim/scenario` | `{name, machine_id?}` proxy to the sim, or replay (`sim_control.md`) | admin | 4 |
 | GET | `/sim/scenarios` | Scenario names | admin | 4 |
 | POST | `/sim/stop` | Replay mode: stop the running scenario and its hold frames → `{ok, stopped}`. Proxy mode → `409` (the sim control API has no stop). Edge addition, Phase 4 | admin | 4 |
+| GET | `/manager/operators` | `{as_of, operators[]}`: profile (no `pin_hash`/`persona`, I9), today's `shift`, `tasks_today {total, <status>…}`, `alerts_7d`, `lessons_pending`, latest `readiness` (shown only, I10). Edge addition (user request) | supervisor | ✅ |
+| GET | `/manager/operators/{id}` | `{as_of, operator}`: the summary above + last 7 `shifts`, last 20 `tasks` (task.v1), `alerts`, `lessons`, 5 `readiness_history` | supervisor | ✅ |
+| GET | `/manager/options` | `{as_of, machines[{machine_id, model_id, family, status}], task_types[], soil_types[], zones[]}` for the assign form | supervisor | ✅ |
+| GET | `/manager/tasks?date=YYYY-MM-DD` | `{as_of, tasks: (task.v1 + operator_name)[]}` for every machine that site-local day (default today) | supervisor | ✅ |
+| POST | `/manager/tasks` | `{operator_id, machine_id, task_type_id, planned_quantity, scheduled_start, scheduled_end, zone_id?, soil_type?, priority 1–5}` → `task.v1` (201). Placed on the machine's day shift `SH-YYYYMMDD-{machine}-D` (created PLANNED if absent). `unit` from the task type. 404 unknown operator/machine/type. 409: machine that day belongs to another operator or is CLOSED, assignee not an operator, not certified for the machine family, cert expired, task type not for this model. 422: end ≤ start, timestamp without offset, unknown soil. Task + shift rows go to the outbox (P1, I7); WS `eta` tells the machine's screen to reload | supervisor | ✅ |
+| PATCH | `/manager/tasks/{id}` | `{operator_id?, machine_id?, scheduled_start?, scheduled_end?, zone_id?, planned_quantity?, priority?}` → `task.v1`. Same checks as POST. 409 once IN_PROGRESS or DONE. To drop a task: `POST /tasks/{id}/status {status: BACKLOG}` | supervisor | ✅ |
 
 ## Supervisor / fleet (mounted on edge **and** cloud, Phase 10)
 

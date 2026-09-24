@@ -88,6 +88,15 @@ const LEVEL_RANK = { critical: 0, warning: 1, caution: 2, info: 3 }
 export const sortAlerts = (alerts) =>
   [...alerts].sort((a, b) => (LEVEL_RANK[a.level] ?? 9) - (LEVEL_RANK[b.level] ?? 9) || String(b.ts).localeCompare(String(a.ts)))
 
+// task.v1 status -> [task-badge class, label]
+export const taskBadge = (status) =>
+  ({
+    IN_PROGRESS: ['in-progress', 'In Progress'],
+    DONE: ['done', 'Complete'],
+    PAUSED: ['pending', 'Paused'],
+    BACKLOG: ['pending', 'Backlog'],
+  })[status] || ['pending', 'Scheduled']
+
 // task.v1 -> view model
 export function normalizeTask(task) {
   const planned = Number(task.planned_quantity || 0)
@@ -148,6 +157,16 @@ export function createIncident(incident, { voice, photos = [] } = {}) {
 export const fetchDiagnostics = (machineId) => request(`/diagnostics/active?machine=${encodeURIComponent(machineId)}`)
 export const askAssistant = (question, { contextCode, machineId } = {}) =>
   request('/assistant/ask', { body: { question, context_code: contextCode || null, machine: machineId || null } })
+
+export const isManager = (role) => role === 'supervisor' || role === 'admin'
+
+// Supervisor (edge/api/manager.py, contracts/rest.md /manager/*)
+export const fetchOperators = () => request('/manager/operators')
+export const fetchOperator = (operatorId) => request(`/manager/operators/${encodeURIComponent(operatorId)}`)
+export const fetchManagerOptions = () => request('/manager/options')
+export const fetchDayTasks = (date) => request(`/manager/tasks${date ? `?date=${date}` : ''}`)
+export const assignTask = (body) => request('/manager/tasks', { body })
+export const updateTask = (taskId, body) => request(`/manager/tasks/${taskId}`, { body, method: 'PATCH' })
 
 export const fetchSimScenarios = () => request('/sim/scenarios')
 export const triggerSimScenario = (name, speed, machineId) =>
