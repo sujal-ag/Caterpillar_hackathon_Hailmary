@@ -144,6 +144,11 @@ export function createIncident(incident, { voice, photos = [] } = {}) {
   return request('/incidents', { body: form })
 }
 
+// Alarm explainer (Phase 8): catalogue cards need no LLM; ask falls back to the catalogue template.
+export const fetchDiagnostics = (machineId) => request(`/diagnostics/active?machine=${encodeURIComponent(machineId)}`)
+export const askAssistant = (question, { contextCode, machineId } = {}) =>
+  request('/assistant/ask', { body: { question, context_code: contextCode || null, machine: machineId || null } })
+
 export const fetchSimScenarios = () => request('/sim/scenarios')
 export const triggerSimScenario = (name, speed, machineId) =>
   request('/sim/scenario', { body: { name, speed, machine_id: machineId } })

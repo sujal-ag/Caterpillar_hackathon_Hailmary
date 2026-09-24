@@ -4,6 +4,98 @@ One entry per phase (plan.md §0 rule 3): what was built, gate results, deviatio
 
 ---
 
+## Phase 8 — Alarm explainer + RAG + LLM ✅ (24 h scope) (2026-09-24)
+
+### Scope
+- **Source:** the team's `rag_module (1)/` (ChromaDB + Ollama embeddings + chat). Its chunk/decode/prompt/citation pattern was ported into `edge/rag.py`. Dropped: ChromaDB, the embedding model, auto-start/auto-pull of Ollama at import, the open upload/delete routes, and the blocking client.
+- **User decisions:** retrieval is exact-code SQL + **SQLite FTS5 BM25 only** (vector leg stays cut; add it only if hit@3 < 90 %). Claude drafts the catalogue; the team reviews it.
+- **Cut (24 h):** cloud LLM, vector/embedding leg. Phase 7 (CV worker) was cut earlier.
+
+### Built
+- **Catalogue** 9 → **31 codes** (`data/catalogue/diagnostic_codes.yaml`). The 22 new entries use public SAE J1939 SPN/FMI names, generic conservative wording, `action_class: UNDOCUMENTED` (HLD §6.11 gives a class only for the seed list), and severity from the FMI level (`assumption`).
+- **Manual corpus** `data/manuals/safety_basics.md`: 9 short `##` sections (walkaround, shutdown, mount/dismount, leaving the cab, coupler, overheating, stop-level warnings, seat belt, people nearby). Labelled demo corpus, no numbers, not attributed to CAT.
+- **`edge/rag.py`:**
+  - `build_index` (FTS5 `rag_chunk`, porter stemmer, rebuilt at every edge start: 40 chunks).
+  - `exact_code` (`context_code`, `J1939-x-y`, `SPN x FMI y`, `E\d{3}`) and `search` (BM25 top-k).
+  - `retrieve`, with the D13 gate: exact code OR top relevance ≥ `rules.yaml rag.min_relevance`.
+  - `guard_ok` (STOP + "continue / keep working / safe to operate…" → rejected), `template`, and async `chat` (Ollama `/api/chat`, `think:false`, `temperature 0`, `num_predict 160`, `keep_alive 30m`).
+- **`action_class` only from an exact code** (typed in the question, `context_code`, or the machine's most severe active DTC); otherwise `UNDOCUMENTED`. A BM25 hit on a code never sets the class: before this, the eval showed "how should I park" borrowing CONTINUE from a battery code (I3).
+- **API** `edge/api/assistant.py`:
+  - `GET /diagnostics/active?machine=`: cards from `ctx.active_dtcs` + the catalogue, no LLM.
+  - `POST /assistant/ask`: `{answer, citations[{n,doc,section,code_id}], action_class, model: local|template, latency_ms, as_of}`.
+  - Ollama down, timeout or guard trip → catalogue template. Off-corpus → fixed refusal.
+  - One JSON log line per ask (question sha, code, class, model, guard, latency).
+- **Runtime:** index build at start. LLM warm-up as a background task (never blocks startup). `/system/status.models.llm`.
+- **Config:** `OLLAMA_URL`, `OLLAMA_MODEL`, `RAG_LLM_TIMEOUT_S` (`.env.example`); compose points edge-api at the host Ollama (`host.docker.internal`, `extra_hosts`). `httpx` moved to runtime deps (the sim proxy already used it). `rules.yaml` `rag:` block (`top_k 4`, `min_relevance 1.0`, `assumption: true`). `en.json` `assistant.refusal`, `assistant.template_note`. `rest.md` rows updated; OpenAPI + TS regenerated. RUNBOOK Phase 8 section.
+
+### Gate results
+| Gate | Result |
+|---|---|
+| `/diagnostics/active` SPN 1638/16 → card + MONITOR, no LLM | ✅ `test_diagnostics_card_and_template_answer_without_llm` (Ollama URL = dead port): card with what/why/do + MONITOR; `/assistant/ask` → `model: template`, MONITOR, 200 (not 5xx) |
+| "Can I keep working?" + SPN 1638/16 → answer + citation, `model: local`; p50 < 5 s | ✅ live compose: edge container → host Ollama, MONITOR, cited `[1]`, `llm: LOCAL`. `eval_rag.py`: **p50 2.54 s, p95 3.42 s** (qwen3.5:9b-mlx, this laptop) |
+| Guard: mocked "You can continue operating" for STOP → template, STOP | ✅ `test_off_corpus_refusal_and_stop_guard` |
+| Off-corpus "cricket score" → refusal, UNDOCUMENTED | ✅ unit + live container (2 ms, no LLM call) |
+| `eval_rag.py` hit@3 ≥ 90 %, action-class 100 % | ✅ **hit@3 20/20 = 100 %, action-class 20/20 = 100 %** → `docs/eval_rag.md` (20-question golden set, not 30: lighter by user request) |
+| Container answers with the network off | ⏳ not run with Wi-Fi off. Everything is local (host Ollama + SQLite, no network call in the path); re-check on the demo laptop |
+| Full suite | ✅ **248 passed, 2 skipped**; ruff clean; OpenAPI + TS regenerated (20 files) |
+
+### Decisions / deviations
+1. **Model: `qwen3.5:9b-mlx`, not `qwen3:4b`.** The installed `qwen3:4b` ignores `think:false` (its reasoning comes back as the answer: 6 s, no answer). `qwen3.5:9b-mlx` honours it: about 2.5 s warm. It is set through `OLLAMA_MODEL`. The MLX model needs host Ollama on macOS, which is why compose points at the host rather than the `llm` profile container.
+2. **D13 without vectors:** the gate is exact code OR BM25 relevance ≥ 1.0 (not cosine τ).
+3. With an exact code, the LLM context is that code plus relevant **manual** sections only. Other codes were leaking into answers (e.g. soot load on a hydraulic temperature question).
+4. `source_section` stays null for codes (no real OMM sections to cite); the citation is the `code_id`.
+5. The FTS index is written with a plain sqlite3 connection at startup (like the seed), not through `DbWriter`: it is derived, rebuilt each start and never synced.
+6. `test_api.py` checks only `eta`/`anomaly` in `models` now (`llm` depends on whether Ollama is running on the host).
+
+### Demo machine-specific fault E001 (user request, same day)
+- Catalogue `DEMO-E001`: "hydraulic lockout lever switch signal lost", CAT 320 only. `dtc.v1` SPN **520192** (start of the J1939 manufacturer-proprietary range, used as a placeholder) FMI 31, `cat_code: E001`. `action_class: STOP` is a **demo assumption**, and `source_doc` says it is not a real CAT code.
+- Replay scenario `demo_e001` (spec + JSONL, EXC001): the fault is raised at t=10 and the `hyd_lockout` signal goes missing at the same time, so Exit Guard counts HYD_UNLOCKED as UNKNOWN = FAIL (I1). `SimControlBar` label "Error E001"; `sim_control.md` notes it as an edge replay-only addition.
+- Live on compose: `/sim/scenario demo_e001` → `/diagnostics/active` card STOP; `/assistant/ask {machine: EXC001}` → STOP, `model: local`, ~4 s, cited. Tests: `test_demo_e001_machine_specific_fault` (card, R16, "E001" question → STOP); golden set 21/21 hit@3 and class. Suite **250 passed, 2 skipped**.
+- The live Ollama test now has a 60 s timeout, because a cold model load can exceed 8 s.
+- Manual `data/manuals/hydraulic_lockout.md` (demo text, 5 sections: the lever, what E001 means, what to do, why it matters for Exit Guard, E001 vs a mechanical lockout fault), so free-text questions about E001 retrieve real explanations.
+- `rag.retrieve`: with a known code, the search also uses that code's component + `cat_code`, so its manual sections come along. Before, "Can I keep working?" about E001 pulled in the unrelated "Seat belt" section.
+- Golden set 23 questions: hit@3 23/23, class 23/23, p50 2.40 s. Live: "What does error E001 mean?" asked twice → the same STOP answer both times (≈3 s, 4 citations); a question with no code in it ("lockout switch signal is lost, what now?") → the E001 manual sections, UNDOCUMENTED.
+
+### Open items
+- **Team review of the catalogue** (22 new codes) and `safety_basics.md` before the demo (Q9).
+- Delete `rag_module (1)/`: fully ported; not deleted without asking.
+- P3: no assistant/diagnostics UI yet. Routes + TS types are ready.
+- Network-off check on the demo laptop.
+- Not committed (asked before committing).
+
+---
+
+## Frontend integration (P3 PWA ↔ edge-api) (2026-09-24)
+
+Not a plan.md phase: `frontend/` was added by P3 and wired to the edge. No backend code changed.
+
+### Fixed
+- **Mock data shown as live (I1/I6).** Mock state/alerts/tasks/lessons/scorecard and a fake offline JWT were used whenever a call failed. All removed; the UI shows "Offline / Data stale · as of …" and "Unknown" instead.
+- **Contract mismatches:** `/readiness` sent `{score, rating}` (422) → now sends the real inputs (10-stimulus reaction test, sleep 24/48 h, feel 1–5) and shows the server's score + i18n reasons. `/tasks` used a hard-coded 2026-09-23 shift id and read `items` → `?machine=`, `tasks`. `/lessons/assigned` read `items` → `assignments`; lesson open/complete use `assignment_id`, honour `deliverable`/409 (I5) and run the Replay MCQ. `/incidents` sent a `payload` field with free-text types → `incident` JSON with the enums + optional hazard pin + photos. Errors are surfaced, not swallowed as `{ok: true}`.
+- **Shift:** login now calls `/shift/start` (handover note shown); "End shift" posts `/shift/end` with a note.
+- **WebSocket:** handles every `ws.md` type (hazards, eta, lesson, sync, telemetry). 4401 → back to login. Exit Guard can't be dismissed while R03 is active; it closes on `CLEARED` and reopens from the snapshot after a reconnect. The R12 overlay follows the same rule. CRITICAL speech interrupts; nothing is rate-limited (I4).
+- **Safety panel** reads telemetry (seatbelt, lockout, bucket height, pitch/roll, proximity); a missing value is "Unknown", never ✓ (I1). **Map** plots live hazard pins + machine pose.
+- UI text comes from `contracts/i18n/en.json` (the hand-copied table is gone). Sim controls list `/sim/scenarios` and are shown to admins only. Scorecard tab removed (cut, 24 h).
+- REST and WS go through the Vite proxy (`/api`, `/ws`; target `EDGE_API_URL`), so no CORS setup is needed.
+
+### Help tab (Phase 8 UI, user request)
+- New `Help` nav tab (`components/Assistant.jsx`) built only from the existing classes (panel-dark header, lesson-card accordions, status-pill, chip, rule-item, primary-lesson-button, the amber advisory note).
+- **Active Fault Codes**: `GET /diagnostics/active` cards with What happened / Why it matters / What to do and the catalogue action pill. STOP cards open by default. The list refetches when R16/R17/R18 raise or clear, plus every 20 s, and shows `as of` (I6).
+- **Ask the Manual**: suggestion chips + free text → `POST /assistant/ask`. Shows the answer, the action pill (hidden for UNDOCUMENTED), numbered citations, local/standard-guidance + latency, and "Showing the standard guidance for this code" when the server used the template.
+- A question is scoped to a fault code only when the operator taps **Ask about this code**, never implicitly. Otherwise a mount/dismount question would show the active fault's STOP badge.
+- `en.json` `assistant.template_note` reworded: a template answer usually means the STOP guard swapped the text, not that the assistant is offline.
+- Checked in headless Chrome against the compose stack with `demo_e001` running: the E001 card renders STOP; "How do I climb down safely?" → local answer with citations, 2.9 s, no pill; "Ask about this code" + "Can I keep working?" → STOP + catalogue text. No console errors. `npm run lint` / `build` clean.
+
+### Checks
+| Check | Result |
+|---|---|
+| `npm run lint`, `npm run build` | ✅ clean |
+| Through the proxy against the compose edge-api: login, shift start, readiness, tasks, lessons, state, incident (multipart) | ✅ all 200 |
+| `/ws/live` via the proxy + `unsafe_exit` | ✅ R05 → R03 FULLSCREEN nudge → exit_checks ticking → R03 CLEARED → R04/R06 |
+| Headless Chrome: login → readiness → all tabs; `unsafe_exit` live | ✅ no console errors; Exit Guard opens at the R03 nudge, ticks "Bucket lowered", closes on CLEARED |
+
+---
+
 ## Phase 6 — Prediction and learning: ML adapter, ETA + tasks, anomaly + R23, lessons + Replay ✅ (24 h scope) (2026-09-24)
 
 ### Scope

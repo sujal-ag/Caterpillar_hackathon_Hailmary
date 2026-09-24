@@ -151,7 +151,10 @@ def test_login_roles_and_binding(app_env):
         "EXC002",
         "WL001",
     }
-    assert status["models"] == {"eta": "UNAVAILABLE", "anomaly": "UNAVAILABLE"}
+    assert {k: status["models"][k] for k in ("eta", "anomaly")} == {
+        "eta": "UNAVAILABLE",
+        "anomaly": "UNAVAILABLE",
+    }
 
 
 def test_missing_jwt_secret_refuses_to_start(tmp_path):

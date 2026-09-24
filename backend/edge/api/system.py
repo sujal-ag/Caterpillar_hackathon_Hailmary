@@ -75,7 +75,7 @@ async def system_status(
             "dropped_out": getattr(bus, "dropped_out", 0),
         },
         sync={"online": False, "pending_by_priority": counts, "queue_depth": sum(counts.values())},
-        models=ml_status(),
+        models={**ml_status(), "llm": rt.llm_status},
         model_detail=rt.ml.versions(),
         sim={"mode": rt.settings.sim_mode, "running": rt.replayer.current},
         auth_disabled=rt.settings.auth_disabled,

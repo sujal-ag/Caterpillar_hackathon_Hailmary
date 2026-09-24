@@ -17,6 +17,7 @@ dependencies = [
     "pydantic-settings",
     "shapely>=2",
     "python-multipart",
+    "httpx",  # sim proxy + Ollama client
 ]
 
 [project.optional-dependencies]
@@ -25,7 +26,6 @@ postgres = [
 ]
 dev = [
     "pytest",
-    "httpx",
     "jsonschema",
     "ruff",
 ]

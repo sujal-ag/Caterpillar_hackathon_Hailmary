@@ -435,10 +435,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/diagnostics/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Diagnostics Active */
+        get: operations["diagnostics_active_diagnostics_active_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask */
+        post: operations["ask_assistant_ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AskRequest */
+        AskRequest: {
+            /** Question */
+            question: string;
+            /** Context Code */
+            context_code?: string | null;
+            /** Machine */
+            machine?: string | null;
+        };
+        /** AskResponse */
+        AskResponse: {
+            /** Answer */
+            answer: string;
+            /** Citations */
+            citations: components["schemas"]["Citation"][];
+            /** Action Class */
+            action_class: string;
+            /** Model */
+            model: string;
+            /** Latency Ms */
+            latency_ms: number;
+            /** As Of */
+            as_of: string;
+        };
         /** Body_create_incident_incidents_post */
         Body_create_incident_incidents_post: {
             /**
@@ -454,12 +512,55 @@ export interface components {
              */
             photos: string[];
         };
+        /** Citation */
+        Citation: {
+            /** N */
+            n: number;
+            /** Doc */
+            doc: string;
+            /** Section */
+            section: string;
+            /** Code Id */
+            code_id: string | null;
+        };
         /** CompleteIn */
         CompleteIn: {
             /** Score */
             score: number;
             /** Answers */
             answers?: unknown[];
+        };
+        /** DiagnosticCard */
+        DiagnosticCard: {
+            /** Code Id */
+            code_id: string | null;
+            /** Spn */
+            spn: number | null;
+            /** Fmi */
+            fmi: number | null;
+            /** Component */
+            component: string | null;
+            /** What Happened */
+            what_happened: string | null;
+            /** Why It Matters */
+            why_it_matters: string | null;
+            /** What To Do */
+            what_to_do: string | null;
+            /** Action Class */
+            action_class: string;
+            /** Source Doc */
+            source_doc: string | null;
+            /** Source Section */
+            source_section: string | null;
+        };
+        /** Diagnostics */
+        Diagnostics: {
+            /** As Of */
+            as_of: string;
+            /** Machine Id */
+            machine_id: string;
+            /** Diagnostics */
+            diagnostics: components["schemas"]["DiagnosticCard"][];
         };
         /** EndRequest */
         EndRequest: {
@@ -1654,6 +1755,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScenarioStopped"];
+                };
+            };
+        };
+    };
+    diagnostics_active_diagnostics_active_get: {
+        parameters: {
+            query: {
+                /** @description machine_id, e.g. EXC001 */
+                machine: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Diagnostics"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ask_assistant_ask_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

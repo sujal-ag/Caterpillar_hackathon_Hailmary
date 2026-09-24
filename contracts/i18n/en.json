@@ -39,5 +39,7 @@
   "readiness.reason.heat_extreme_caution": "Heat: extreme caution.",
   "readiness.reason.heat_danger": "Heat: danger.",
   "readiness.reason.long_blinks": "Several long blinks during the check.",
-  "readiness.reason.no_personal_baseline": "No personal baseline yet — compared with a typical reaction time."
+  "readiness.reason.no_personal_baseline": "No personal baseline yet — compared with a typical reaction time.",
+  "assistant.refusal": "Not in the documentation I have — contact your supervisor.",
+  "assistant.template_note": "Showing the standard guidance for this code."
 }

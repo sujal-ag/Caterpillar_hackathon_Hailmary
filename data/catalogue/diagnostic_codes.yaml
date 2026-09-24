@@ -135,3 +135,342 @@
   source_doc: "DEMO corpus — verify against OMM"
   source_section: null
   doc_version: null
+
+# --- Phase 8 additions (drafted by Claude, team review required before the demo) ---
+# Component/description names follow the public SAE J1939 SPN/FMI definitions. All
+# action_class = UNDOCUMENTED: HLD §6.11 only states a class for the seed list above.
+# severity from the FMI severity level (0/1 -> 1, 16/18 -> 2, other -> 3): assumption: true.
+- code_id: J1939-110-15
+  spn: 110
+  fmi: 15
+  cat_code: null
+  component: Engine coolant temperature
+  description: Coolant temperature above normal, least severe level
+  severity: 3
+  action_class: UNDOCUMENTED
+  what_happened: Coolant temperature is slightly above normal.
+  why_it_matters: A small rise can grow into an overheat if the cause is not found.
+  what_to_do: Reduce load and watch the temperature gauge. Check the radiator and cooler for debris at
+    the next stop.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-111-1
+  spn: 111
+  fmi: 1
+  cat_code: null
+  component: Engine coolant level
+  description: Coolant level below normal, most severe level
+  severity: 1
+  action_class: UNDOCUMENTED
+  what_happened: The coolant level is very low.
+  why_it_matters: Low coolant can quickly lead to engine overheating and damage.
+  what_to_do: Stop in a safe place, lower the implement, and shut down. Do not open a hot radiator cap.
+    Report it to maintenance.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-111-18
+  spn: 111
+  fmi: 18
+  cat_code: null
+  component: Engine coolant level
+  description: Coolant level below normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: The coolant level is below normal.
+  why_it_matters: The engine can overheat if coolant keeps dropping.
+  what_to_do: Watch the temperature gauge. Report it to maintenance and check for leaks when the engine
+    is cool.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-100-18
+  spn: 100
+  fmi: 18
+  cat_code: null
+  component: Engine oil pressure
+  description: Oil pressure below normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: Engine oil pressure is lower than normal.
+  why_it_matters: Low oil pressure can damage engine bearings.
+  what_to_do: Reduce engine load and report it to maintenance. Check the oil level when the machine is
+    parked and shut down.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-175-16
+  spn: 175
+  fmi: 16
+  cat_code: null
+  component: Engine oil temperature
+  description: Engine oil temperature above normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: Engine oil is running hotter than normal.
+  why_it_matters: Hot oil protects the engine less well.
+  what_to_do: Reduce load and let the engine cool at idle. Report it if it does not come down.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-190-0
+  spn: 190
+  fmi: 0
+  cat_code: null
+  component: Engine speed
+  description: Engine speed above normal, most severe level (overspeed)
+  severity: 1
+  action_class: UNDOCUMENTED
+  what_happened: The engine ran faster than its safe speed.
+  why_it_matters: Overspeed can seriously damage the engine.
+  what_to_do: Reduce throttle, avoid travelling downhill in a high gear, and report it to maintenance.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-94-18
+  spn: 94
+  fmi: 18
+  cat_code: null
+  component: Fuel delivery pressure
+  description: Fuel delivery pressure below normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: Fuel pressure to the engine is low.
+  why_it_matters: The engine may lose power or stall.
+  what_to_do: Check the fuel level. Report it to maintenance; a fuel filter may need attention.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-96-18
+  spn: 96
+  fmi: 18
+  cat_code: null
+  component: Fuel level
+  description: Fuel level below normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: The fuel tank is low.
+  why_it_matters: Running out of fuel can stall the machine and let air into the fuel system.
+  what_to_do: Plan to refuel soon. Park on level ground to refuel with the engine off.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-102-18
+  spn: 102
+  fmi: 18
+  cat_code: null
+  component: Engine intake manifold pressure (boost)
+  description: Boost pressure below normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: Turbo boost pressure is low.
+  why_it_matters: The engine will have less power and may smoke.
+  what_to_do: Reduce load and report it to maintenance. Check for loose intake hoses at the next stop.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-105-16
+  spn: 105
+  fmi: 16
+  cat_code: null
+  component: Engine intake manifold temperature
+  description: Intake air temperature above normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: Intake air is hotter than normal.
+  why_it_matters: Hot intake air lowers power and raises engine temperature.
+  what_to_do: Reduce load. Check the charge air cooler for debris at the next stop.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-107-15
+  spn: 107
+  fmi: 15
+  cat_code: null
+  component: Engine air filter differential pressure
+  description: Air filter restriction above normal, least severe level
+  severity: 3
+  action_class: UNDOCUMENTED
+  what_happened: The engine air filter is getting restricted.
+  why_it_matters: A clogged filter reduces power and raises fuel use.
+  what_to_do: Report it so the air filter can be serviced.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-157-18
+  spn: 157
+  fmi: 18
+  cat_code: null
+  component: Engine injector rail pressure
+  description: Fuel rail pressure below normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: Fuel injection pressure is low.
+  why_it_matters: The engine may lose power or run rough.
+  what_to_do: Reduce load and report it to maintenance.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-3719-16
+  spn: 3719
+  fmi: 16
+  cat_code: null
+  component: Aftertreatment DPF soot load
+  description: Particulate filter soot load above normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: The exhaust particulate filter is loading up with soot.
+  why_it_matters: If it keeps loading, engine power may be reduced.
+  what_to_do: Allow regeneration when prompted. Keep flammable material away from the exhaust. Report
+    it if it repeats.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-1761-1
+  spn: 1761
+  fmi: 1
+  cat_code: null
+  component: Aftertreatment DEF tank level
+  description: DEF level below normal, most severe level
+  severity: 1
+  action_class: UNDOCUMENTED
+  what_happened: The DEF tank is very low.
+  why_it_matters: The machine may reduce engine power until DEF is added.
+  what_to_do: Refill DEF as soon as possible with the engine off.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-4364-18
+  spn: 4364
+  fmi: 18
+  cat_code: null
+  component: Aftertreatment SCR conversion efficiency
+  description: SCR efficiency below normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: The exhaust after-treatment is not cleaning the exhaust as well as it should.
+  why_it_matters: Engine power may be reduced if this continues.
+  what_to_do: Report it to maintenance. Check that the DEF used is correct and clean.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-1638-0
+  spn: 1638
+  fmi: 0
+  cat_code: null
+  component: Hydraulic oil temperature
+  description: Hydraulic oil temperature above normal, most severe level
+  severity: 1
+  action_class: UNDOCUMENTED
+  what_happened: Hydraulic oil is very hot.
+  why_it_matters: Very hot oil can make controls slow and damage the hydraulic system.
+  what_to_do: Lower the implement to the ground, reduce work and let the oil cool at idle. Report it to
+    maintenance.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-1638-15
+  spn: 1638
+  fmi: 15
+  cat_code: null
+  component: Hydraulic oil temperature
+  description: Hydraulic oil temperature above normal, least severe level
+  severity: 3
+  action_class: UNDOCUMENTED
+  what_happened: Hydraulic oil is slightly warmer than normal.
+  why_it_matters: It can keep rising under heavy work.
+  what_to_do: Avoid holding the hydraulics over relief. Check the oil cooler for debris at the next stop.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-177-16
+  spn: 177
+  fmi: 16
+  cat_code: null
+  component: Transmission oil temperature
+  description: Transmission oil temperature above normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: Transmission oil is running hot.
+  why_it_matters: Hot transmission oil can damage the transmission.
+  what_to_do: Reduce load and avoid long high-speed travel. Let it cool and report it.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-117-1
+  spn: 117
+  fmi: 1
+  cat_code: null
+  component: Brake primary pressure
+  description: Brake pressure below normal, most severe level
+  severity: 1
+  action_class: UNDOCUMENTED
+  what_happened: Brake pressure is very low.
+  why_it_matters: The service brakes may not stop the machine normally.
+  what_to_do: Stop the machine in a safe place, lower the bucket, apply the parking brake and report it.
+    Do not travel until checked.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-168-1
+  spn: 168
+  fmi: 1
+  cat_code: null
+  component: Battery voltage
+  description: Battery voltage below normal, most severe level
+  severity: 1
+  action_class: UNDOCUMENTED
+  what_happened: Battery voltage is very low.
+  why_it_matters: The machine may not restart and electrical systems may act up.
+  what_to_do: Avoid shutting down far from help. Report it so the charging system can be checked.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-168-16
+  spn: 168
+  fmi: 16
+  cat_code: null
+  component: Battery voltage
+  description: Battery voltage above normal, moderately severe level
+  severity: 2
+  action_class: UNDOCUMENTED
+  what_happened: System voltage is higher than normal.
+  why_it_matters: Overcharging can damage the batteries and electronics.
+  what_to_do: Report it to maintenance so the alternator can be checked.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+- code_id: J1939-1856-2
+  spn: 1856
+  fmi: 2
+  cat_code: null
+  component: Seat belt switch
+  description: Seat belt switch signal erratic
+  severity: 3
+  action_class: UNDOCUMENTED
+  what_happened: The seat belt switch signal is unreliable.
+  why_it_matters: The system cannot confirm the seat belt is fastened.
+  what_to_do: Make sure your seat belt is fastened. Report the switch fault to maintenance.
+  source_doc: DEMO corpus — verify against OMM
+  source_section: null
+  doc_version: null
+
+# --- Demo machine-specific code (user request, 2026-09-24). NOT a real CAT code: SPN 520192
+# is the start of the J1939 manufacturer-proprietary range, used here as a placeholder.
+# CAT 320 excavator only. action_class STOP is a demo assumption (assumption: true), not
+# from any CAT document. Raised by the `demo_e001` replay scenario.
+- code_id: DEMO-E001
+  spn: 520192
+  fmi: 31
+  cat_code: E001
+  component: Hydraulic lockout lever switch (CAT 320 excavator)
+  description: Hydraulic lockout lever switch signal lost (demo code)
+  severity: 1
+  action_class: STOP
+  what_happened: The machine can no longer tell whether the hydraulic lockout lever is locked.
+  why_it_matters: Exit Guard cannot confirm the hydraulics are locked, so the implement could move when you leave the seat.
+  what_to_do: Lower the bucket to the ground, stop the engine before leaving the cab, and report the switch fault to maintenance.
+  source_doc: "DEMO corpus — not a real CAT code"
+  source_section: null
+  doc_version: null

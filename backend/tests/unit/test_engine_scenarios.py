@@ -68,9 +68,11 @@ def test_fixture_regenerates_from_spec(spec, jsonl):
 
 
 def test_replay_scenarios_are_the_contract_names():
-    # User decision (Phase 4): the demo-script subset of contracts/sim_control.md.
+    # User decision (Phase 4): the demo-script subset of contracts/sim_control.md, plus the
+    # Phase 8 demo machine-specific fault (demo_e001).
     assert sorted(p.stem for p in SCENARIOS.glob("*.jsonl")) == [
         "belt_bypass",
+        "demo_e001",
         "drive_into_zone",
         "dtc_1638_16",
         "proximity_intrusion",

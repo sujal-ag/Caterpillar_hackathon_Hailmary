@@ -20,7 +20,7 @@ from common.db.session import create_all, make_engine, sqlite_url
 from common.db.writer import DbWriter
 from common.log import jlog
 from common.timeutil import MonotonicClock, parse_iso, to_site_iso
-from edge import hazards
+from edge import hazards, rag
 from edge.broadcast import OVERFLOW, Broadcaster
 from edge.bus import Bus, MqttBus
 from edge.engine.machine import MachineEngine
@@ -93,6 +93,12 @@ class Runtime:
         )
         self.sink = Broadcaster(self.bus, site_id, s.ws_queue_max)
         catalogue = build_catalogue_index(codes)
+        self.codes = {c["code_id"]: c for c in codes}
+        chunks = await asyncio.to_thread(
+            rag.build_index, s.edge_db_path, codes, s.data_dir / "manuals"
+        )
+        jlog(log, logging.INFO, "rag_index_built", chunks=chunks)
+        self.llm_status = "UNAVAILABLE"
 
         for m in machines:
             self.runners[m["machine_id"]] = EngineRunner(
@@ -121,6 +127,7 @@ class Runtime:
         self.tasks.append(asyncio.create_task(self._expire_hazards(), name="hazards-expiry"))
         self.tasks.append(asyncio.create_task(self._learn_predict(), name="learn-predict"))
         self.tasks.append(asyncio.create_task(self._anomaly_loop(), name="anomaly"))
+        self.tasks.append(asyncio.create_task(self._llm_warmup(), name="llm-warmup"))
         await hazards.publish(self)  # the retained topic always reflects this edge's DB
         jlog(
             log,
@@ -237,6 +244,16 @@ class Runtime:
                 jlog(log, logging.INFO, "hazards_expired", pin_ids=expired)
 
     # --- LEARN / PREDICT (Phase 6) ---------------------------------------------------------
+
+    async def _llm_warmup(self) -> None:
+        """Load the model into Ollama so the first question is fast. Never blocks startup."""
+        s = self.settings
+        chunk = {"doc": "warmup", "section": "warmup", "text": "Warm-up."}
+        try:
+            await rag.chat(s.ollama_url, s.ollama_model, 120, "Reply OK.", [chunk])
+            self.llm_status = "LOCAL"
+        except Exception as exc:  # noqa: BLE001 - no LLM = template answers, never a crash
+            jlog(log, logging.WARNING, "llm_unavailable", error=repr(exc))
 
     async def safe(self, coro) -> None:
         try:

@@ -109,6 +109,14 @@ hazards:
   expiry_h: 24
   hld_ref: "§4.12, §6.11"
 
+# Alarm explainer retrieval (HLD §7.5). FTS5-only (vector leg cut), so D13's cosine τ is
+# replaced by a BM25 relevance floor: exact code match OR top relevance >= min_relevance.
+rag:
+  top_k: 4
+  min_relevance: 1.0            # tuned on tests/rag_golden.yaml (tools/eval_rag.py)
+  assumption: true
+  hld_ref: "§7.5; D13"
+
 rules:
   - id: R01
     name: seatbelt_off_while_active

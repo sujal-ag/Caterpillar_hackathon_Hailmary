@@ -1,0 +1,26 @@
+# Phase 8 golden set (HLD §7.5). expect = code_id or manual section that must be in the
+# top 3; action = expected action_class: the catalogue's class for an exact code (typed or
+# context_code), else UNDOCUMENTED; never generated or guessed from a BM25 hit.
+- {q: "What does SPN 1638 FMI 16 mean?", expect: J1939-1638-16, action: MONITOR}
+- {q: "Can I keep working with SPN 110 FMI 0?", expect: J1939-110-0, action: STOP}
+- {q: "E361 is showing, what do I do?", expect: CAT-E361, action: STOP}
+- {q: "E360 low oil pressure event", expect: CAT-E360, action: STOP}
+- {q: "Can I keep working?", context_code: J1939-1638-16, expect: J1939-1638-16, action: MONITOR}
+- {q: "Battery voltage is a little low", expect: J1939-168-18, action: UNDOCUMENTED}
+- {q: "water in fuel warning", expect: J1939-97-0, action: UNDOCUMENTED}
+- {q: "DEF tank is low", expect: J1939-1761-18, action: UNDOCUMENTED}
+- {q: "coolant level is low", expect: J1939-111-18, action: UNDOCUMENTED}
+- {q: "brake pressure warning", expect: J1939-117-1, action: UNDOCUMENTED}
+- {q: "engine overspeed", expect: J1939-190-0, action: UNDOCUMENTED}
+- {q: "air filter restriction", expect: J1939-107-15, action: UNDOCUMENTED}
+- {q: "particulate filter soot", expect: J1939-3719-16, action: UNDOCUMENTED}
+- {q: "How do I climb down from the cab?", expect: Mounting and dismounting, action: UNDOCUMENTED}
+- {q: "three points of contact", expect: Mounting and dismounting, action: UNDOCUMENTED}
+- {q: "How should I park at the end of the shift?", expect: Safe shutdown and parking, action: UNDOCUMENTED}
+- {q: "How do I check the coupler after changing the bucket?", expect: Coupler checks, action: UNDOCUMENTED}
+- {q: "What do I check on the daily walkaround?", expect: Daily walkaround, action: UNDOCUMENTED}
+- {q: "Someone walked behind the machine", expect: People near the machine, action: UNDOCUMENTED}
+- {q: "What does error E001 mean?", expect: DEMO-E001, action: STOP}
+- {q: "Why does the lockout switch fault matter when leaving the cab?", expect: Why E001 matters for Exit Guard, action: UNDOCUMENTED}
+- {q: "What should I do when the lockout switch signal is lost?", expect: What to do when E001 appears, action: UNDOCUMENTED}
+- {q: "What's the cricket score?", expect: null, action: UNDOCUMENTED}

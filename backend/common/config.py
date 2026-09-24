@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     models_dir: str = "data/models"  # MODELS_DIR/{model_name}/{version} (model_registry)
     lessons_path: Path = REPO_ROOT / "data" / "lessons" / "lessons.json"  # lesson.v1 (P3)
 
+    # alarm explainer + manual Q&A (plan.md Phase 8): local Ollama only (cloud LLM cut)
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen3.5:9b-mlx"  # host Ollama (MLX = macOS); qwen3:4b always thinks
+    rag_llm_timeout_s: float = 8.0
+
     # simulator control (contracts/sim_control.md)
     sim_mode: str = "proxy"  # proxy | replay
     sim_control_url: str = ""

@@ -45,6 +45,15 @@ If an older DB fails with `DB schema vN is older than vM`, delete it and let the
 - Lessons: `data/lessons/lessons.json` (a stub until P3 delivers). They are served only with the engine OFF or after shift end (`409` otherwise, I5).
 - Schema v4: delete the old DB as in Phase 5.
 
+## Alarm explainer + assistant (Phase 8)
+
+- The LLM runs on the **host's** Ollama (not in Docker, so the macOS MLX model can use the GPU). The edge container reaches it at `http://host.docker.internal:11434` (`OLLAMA_URL`).
+- Model: `OLLAMA_MODEL=qwen3.5:9b-mlx` (default). `qwen3:4b` doesn't work here: it ignores `think:false` and spends the whole answer thinking. To use a smaller model, pull one that honours `think:false` (e.g. an `-instruct` tag) and set `OLLAMA_MODEL`.
+- The edge warms the model up in the background at start. `/system/status.models.llm` shows LOCAL or UNAVAILABLE. Startup never waits on Ollama.
+- Without Ollama, `/diagnostics/active` still returns catalogue cards, and `/assistant/ask` returns the catalogue template (`model: template`). An off-corpus question gets the fixed refusal.
+- Corpus: `data/catalogue/diagnostic_codes.yaml` (31 codes, **demo text: team review needed**) + `data/manuals/*.md` (`##` = one section). The FTS5 index is rebuilt at every edge start.
+- Eval: `.venv/bin/python tools/eval_rag.py` → `docs/eval_rag.md`.
+
 ## Scenarios
 
 - `GET /sim/scenarios`, `POST /sim/scenario {"name": "unsafe_exit"}` (admin token).

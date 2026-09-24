@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from common.config import Settings
 from common.log import install_redaction
 from edge.api import (
+    assistant,
     auth,
     env,
     hazards,
@@ -71,6 +72,7 @@ def create_app(
         incidents,
         env,
         sim,
+        assistant,
         live,
     )
     for module in routers:

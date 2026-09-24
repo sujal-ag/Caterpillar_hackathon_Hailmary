@@ -7,6 +7,7 @@ const LABELS = {
   safe_exit: 'Safe Exit',
   proximity_intrusion: 'Proximity Intrusion (R12/13)',
   dtc_1638_16: 'DTC Alert',
+  demo_e001: 'Error E001',
   drive_into_zone: 'Drive Into Hazard Zone',
   belt_bypass: 'Seatbelt Bypass (R07)',
   tilt_excursion: 'Slope/Tilt Caution',

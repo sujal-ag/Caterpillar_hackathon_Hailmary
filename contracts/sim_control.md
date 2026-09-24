@@ -28,4 +28,6 @@ Required scenario names. Each one is deterministic and ends in a steady state:
 | `tilt_excursion` | Roll 11–17° for 20–120 s |
 | `overheat_trend` | Hydraulic oil rising 1 °C / 3 min toward the DTC |
 
+Edge replay-only addition (Phase 8 demo, not required from P1): `demo_e001` = `dtc.v1` SPN 520192 FMI 31 `cat_code: E001` on EXC001 with `hyd_lockout` missing from t=10 (catalogue `DEMO-E001`, a placeholder, not a real CAT code).
+
 `sim_label` must be set on the frames that belong to the injected behaviour (HLD §6.14).

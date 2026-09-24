@@ -39,8 +39,8 @@ Conventions:
 | POST | `/env/ground` | `{ground_condition: DRY\|WET\|MUDDY}` → published `env.v1` (MANUAL) | operator | 5 ✅ |
 | POST | `/env/manual` | `{temp_c, rh_pct}` → published `env.v1` (MANUAL) | operator | 5 ✅ |
 | POST | `/idle/{episode_id}/reason` | `{reason_tag}` (R09 chip) — skipped: R09 is cut (24 h plan) | operator | — |
-| GET | `/diagnostics/active` | Active DTC cards: what happened / why it matters / what to do + `action_class` (no LLM) | operator | 8 |
-| POST | `/assistant/ask` | `{question, context_code?}` → `{answer, citations[], action_class, model: local\|cloud\|template, latency_ms}` | operator | 8 |
+| GET | `/diagnostics/active?machine=` | `{as_of, machine_id, diagnostics[]}`: active DTC cards, what happened / why it matters / what to do + `action_class` from the catalogue (no LLM) | operator | 8 ✅ |
+| POST | `/assistant/ask` | `{question (1–500), context_code?, machine?}` → `{answer, citations[{n, doc, section, code_id}], action_class, model: local\|template, latency_ms, as_of}`. `action_class` only from an exact code (typed, `context_code`, or the machine's most severe active DTC), else `UNDOCUMENTED`. Off-corpus → fixed refusal. Cloud LLM cut | operator | 8 ✅ |
 | GET | `/lessons/assigned?operator_id=` | `{as_of, assignments[]}` with `reason`, `deliverable`, lesson summary (`operator_id`: supervisor only) | operator | 6 ✅ |
 | GET | `/lessons/{id}` | `{id}` = **assignment_id** → `{assignment, lesson, replay}`. `409` unless the machine is known OFF or the shift ended (I5) | operator | 6 ✅ |
 | POST | `/lessons/{id}/complete` | `{score 0–100, answers[]}` (assignment_id). `409` while the machine may be active (I5) | operator | 6 ✅ |

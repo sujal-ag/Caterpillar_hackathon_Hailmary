@@ -4,6 +4,7 @@ import Dashboard from './components/Dashboard'
 import Safety from './components/Safety'
 import Tasks from './components/Tasks'
 import Training from './components/Training'
+import Assistant from './components/Assistant'
 import SiteMap from './components/SiteMap'
 import AuthScreen from './components/AuthScreen'
 import ExitGuardModal from './components/ExitGuardModal'
@@ -35,6 +36,7 @@ const NAV = [
   { id: 'safety', label: 'Safety' },
   { id: 'tasks', label: 'Tasks' },
   { id: 'training', label: 'Learn' },
+  { id: 'help', label: 'Help' },
   { id: 'site', label: 'Map' },
 ]
 
@@ -300,6 +302,7 @@ export default function App() {
         )}
         {tab === 'tasks' && <Tasks tasks={tasks} onChanged={loadTasks} onError={setNotice} />}
         {tab === 'training' && <Training refreshKey={lessonTick} />}
+        {tab === 'help' && <Assistant machineId={machineId} alerts={live.alerts} />}
         {tab === 'site' && <SiteMap hazards={live.hazards} telemetry={isLive ? live.telemetry : null} machineId={machineId} />}
       </main>
 

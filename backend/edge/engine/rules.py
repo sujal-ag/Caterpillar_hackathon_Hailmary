@@ -52,6 +52,7 @@ class RuleSet:
     version: int = 0
     readiness: dict = field(default_factory=dict)  # HLD §7.4 score table
     hazards: dict = field(default_factory=dict)  # HLD §4.12 pin limits + expiry
+    rag: dict = field(default_factory=dict)  # HLD §7.5 retrieval gate (D13)
 
     def by_id(self, rule_id: str) -> Rule:
         return next(r for r in self.rules if r.id == rule_id)
@@ -68,6 +69,7 @@ def load_rules(path: Path = RULES_PATH) -> RuleSet:
         doc.get("version", 0),
         doc.get("readiness", {}),
         doc.get("hazards", {}),
+        doc.get("rag", {}),
     )
 
 

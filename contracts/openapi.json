@@ -1241,10 +1241,183 @@
           }
         ]
       }
+    },
+    "/diagnostics/active": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Diagnostics Active",
+        "operationId": "diagnostics_active_diagnostics_active_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "machine",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "machine_id, e.g. EXC001",
+              "title": "Machine"
+            },
+            "description": "machine_id, e.g. EXC001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Diagnostics"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assistant/ask": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Ask",
+        "operationId": "ask_assistant_ask_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "AskRequest": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Question"
+          },
+          "context_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Code"
+          },
+          "machine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "AskRequest"
+      },
+      "AskResponse": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "action_class": {
+            "type": "string",
+            "title": "Action Class"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "as_of": {
+            "type": "string",
+            "title": "As Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer",
+          "citations",
+          "action_class",
+          "model",
+          "latency_ms",
+          "as_of"
+        ],
+        "title": "AskResponse"
+      },
       "Body_create_incident_incidents_post": {
         "properties": {
           "incident": {
@@ -1280,6 +1453,41 @@
         ],
         "title": "Body_create_incident_incidents_post"
       },
+      "Citation": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "doc": {
+            "type": "string",
+            "title": "Doc"
+          },
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "code_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "doc",
+          "section",
+          "code_id"
+        ],
+        "title": "Citation"
+      },
       "CompleteIn": {
         "properties": {
           "score": {
@@ -1300,6 +1508,153 @@
           "score"
         ],
         "title": "CompleteIn"
+      },
+      "DiagnosticCard": {
+        "properties": {
+          "code_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Id"
+          },
+          "spn": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spn"
+          },
+          "fmi": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fmi"
+          },
+          "component": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Component"
+          },
+          "what_happened": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "What Happened"
+          },
+          "why_it_matters": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why It Matters"
+          },
+          "what_to_do": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "What To Do"
+          },
+          "action_class": {
+            "type": "string",
+            "title": "Action Class"
+          },
+          "source_doc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Doc"
+          },
+          "source_section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Section"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code_id",
+          "spn",
+          "fmi",
+          "component",
+          "what_happened",
+          "why_it_matters",
+          "what_to_do",
+          "action_class",
+          "source_doc",
+          "source_section"
+        ],
+        "title": "DiagnosticCard"
+      },
+      "Diagnostics": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "title": "As Of"
+          },
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/DiagnosticCard"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "machine_id",
+          "diagnostics"
+        ],
+        "title": "Diagnostics"
       },
       "EndRequest": {
         "properties": {
