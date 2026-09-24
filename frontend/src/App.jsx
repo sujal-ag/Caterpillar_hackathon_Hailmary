@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import SafetyStrip from './components/SafetyStrip'
 import Dashboard from './components/Dashboard'
 import Safety from './components/Safety'
 import Tasks from './components/Tasks'
 import Training from './components/Training'
-import Scorecard from './components/Scorecard'
 import SiteMap from './components/SiteMap'
 import AuthScreen from './components/AuthScreen'
 import ExitGuardModal from './components/ExitGuardModal'
@@ -12,308 +11,257 @@ import HazardReportModal from './components/HazardReportModal'
 import ReadinessModal from './components/ReadinessModal'
 import AlertWhyModal from './components/AlertWhyModal'
 import SimControlBar from './components/SimControlBar'
-import { ALERTS, NAV, TASKS as FALLBACK_TASKS } from './data/mockData'
-import { BACKEND_STATE } from './data/backendContract'
 import {
-  createIncident,
-  fetchOperatorData,
-  getAuthToken,
-  getStoredMachineId,
-  loginWithBadgeAndPin,
-  normalizeAlert,
-  submitReadiness,
+  AUTH_EXPIRED_EVENT,
   acknowledgeAlert,
+  clearSession,
+  endShift,
+  fetchSnapshot,
+  fetchTasks,
+  getAuthToken,
+  getSession,
+  getStoredMachineId,
+  login,
+  normalizeAlert,
+  normalizeTask,
+  sortAlerts,
+  startShift,
 } from './services/backendService'
 import { LiveWebSocketClient } from './services/liveSocket'
 import { formatMessage } from './data/i18n'
 
+const NAV = [
+  { id: 'dashboard', label: 'Home' },
+  { id: 'safety', label: 'Safety' },
+  { id: 'tasks', label: 'Tasks' },
+  { id: 'training', label: 'Learn' },
+  { id: 'site', label: 'Map' },
+]
+
+const EMPTY_LIVE = { state: null, telemetry: null, alerts: [], hazards: [], sync: null, asOf: null }
+
+function playTone(ctxRef, critical) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext
+  if (!AudioContextClass) return
+  try {
+    const ctx = ctxRef.current ?? new AudioContextClass()
+    ctxRef.current = ctx
+    if (ctx.state === 'suspended') ctx.resume()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = critical ? 'sawtooth' : 'sine'
+    osc.frequency.setValueAtTime(critical ? 820 : 660, ctx.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(420, ctx.currentTime + 0.26)
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(critical ? 0.1 : 0.05, ctx.currentTime + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.42)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.44)
+  } catch (error) {
+    console.warn('Audio alert unavailable:', error)
+  }
+}
+
+function speak(text, critical) {
+  if (!text || !window.speechSynthesis) return
+  // A CRITICAL nudge interrupts whatever is being said; lower levels queue behind it (I4).
+  if (critical) window.speechSynthesis.cancel()
+  const utterance = new SpeechSynthesisUtterance(text)
+  utterance.rate = 1.05
+  window.speechSynthesis.speak(utterance)
+}
+
 export default function App() {
   const [tab, setTab] = useState('dashboard')
+  const [machineId, setMachineId] = useState(getStoredMachineId)
+  const [session, setSession] = useState(() => (getAuthToken() ? getSession() : null))
+  const [wsStatus, setWsStatus] = useState('disconnected')
+  const [live, setLive] = useState(EMPTY_LIVE)
+  const [tasks, setTasks] = useState([])
+  const [lessonTick, setLessonTick] = useState(0)
+  const [notice, setNotice] = useState('')
+
   const [exitGuardOpen, setExitGuardOpen] = useState(false)
+  const [proximity, setProximity] = useState(null) // R12 FULLSCREEN nudge slots
   const [hazardReportOpen, setHazardReportOpen] = useState(false)
-  const [readinessOpen, setReadinessOpen] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return window.localStorage.getItem('cat-readiness-onboarded') !== 'true'
-  })
-  const [selectedAlertForWhy, setSelectedAlertForWhy] = useState(null)
-  const [machineId, setMachineId] = useState(() => getStoredMachineId())
-  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAuthToken()))
-  const [wsStatus, setWsStatus] = useState('disconnected') // 'connecting' | 'connected' | 'disconnected'
-  const [proximityAlertOpen, setProximityAlertOpen] = useState(false)
-  const [proximityDetails, setProximityDetails] = useState({
-    distance_m: 2.9,
-    sector: 'behind you, left side',
-    action: 'Stop swinging now',
-  })
+  const [readinessOpen, setReadinessOpen] = useState(false)
+  const [lastReadiness, setLastReadiness] = useState(null)
+  const [whyAlertId, setWhyAlertId] = useState(null)
 
-  const [readinessState, setReadinessState] = useState(() => {
-    if (typeof window === 'undefined') return { score: 88, rating: 'GREEN', reasons: [] }
-    const saved = window.localStorage.getItem('cat-readiness-state')
-    if (!saved) return { score: 88, rating: 'GREEN', reasons: [] }
-    try {
-      return JSON.parse(saved)
-    } catch {
-      return { score: 88, rating: 'GREEN', reasons: [] }
-    }
-  })
+  const audioRef = useRef(null)
 
-  const [liveData, setLiveData] = useState({
-    state: BACKEND_STATE,
-    alerts: ALERTS,
-    tasks: FALLBACK_TASKS,
-    nudge: null,
-    isLive: false,
-  })
+  const logout = useCallback(() => {
+    clearSession()
+    setSession(null)
+    setLive(EMPTY_LIVE)
+    setTasks([])
+    setExitGuardOpen(false)
+    setProximity(null)
+  }, [])
 
-  const lastCriticalAlertRef = useRef('')
-  const audioContextRef = useRef(null)
-  const wsClientRef = useRef(null)
-
-  const playAlertTone = () => {
-    if (typeof window === 'undefined') return
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext
-    if (!AudioContextClass) return
-
-    try {
-      const context = audioContextRef.current ?? new AudioContextClass()
-      audioContextRef.current = context
-
-      if (context.state === 'suspended') {
-        context.resume()
-      }
-
-      const oscillator = context.createOscillator()
-      const gainNode = context.createGain()
-
-      oscillator.type = 'sawtooth'
-      oscillator.frequency.setValueAtTime(820, context.currentTime)
-      oscillator.frequency.exponentialRampToValueAtTime(420, context.currentTime + 0.26)
-
-      gainNode.gain.setValueAtTime(0.0001, context.currentTime)
-      gainNode.gain.exponentialRampToValueAtTime(0.08, context.currentTime + 0.02)
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.42)
-
-      oscillator.connect(gainNode)
-      gainNode.connect(context.destination)
-      oscillator.start()
-      oscillator.stop(context.currentTime + 0.44)
-    } catch (error) {
-      console.warn('Audio alert unavailable on this device:', error)
-    }
-  }
-
-  const speakNudge = (text) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return
-    try {
-      window.speechSynthesis.cancel() // Cancel prior speech to stay low latency
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.rate = 1.05
-      utterance.pitch = 0.95
-      window.speechSynthesis.speak(utterance)
-    } catch (error) {
-      console.warn('Speech synthesis unavailable:', error)
-    }
-  }
-
-  // 1. Initial REST fetch + Polling fallback
   useEffect(() => {
-    if (!isAuthenticated) return undefined
+    window.addEventListener(AUTH_EXPIRED_EVENT, logout)
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, logout)
+  }, [logout])
 
-    let isMounted = true
-
-    const load = async () => {
-      const next = await fetchOperatorData(machineId)
-      if (isMounted) {
-        setLiveData((prev) => ({
-          ...prev,
-          state: next.state,
-          alerts: next.alerts,
-          tasks: next.tasks.length ? next.tasks : prev.tasks,
-          isLive: next.isLive,
-        }))
-      }
+  const loadTasks = useCallback(async () => {
+    try {
+      const data = await fetchTasks(machineId)
+      setTasks(data.tasks.map(normalizeTask))
+    } catch (error) {
+      console.warn('Tasks unavailable:', error.message)
     }
+  }, [machineId])
 
-    load()
-    const interval = window.setInterval(load, 15000)
+  const applySnapshot = useCallback((snap) => {
+    const alerts = snap.alerts.map(normalizeAlert)
+    setLive((prev) => ({
+      ...prev,
+      state: snap.state,
+      alerts: sortAlerts(alerts),
+      hazards: snap.hazards?.pins || [],
+      sync: snap.sync,
+      asOf: snap.as_of,
+    }))
+    // Reconnect mid-alert: the overlays follow the active alert, not a missed nudge.
+    setExitGuardOpen((open) => open || alerts.some((a) => a.rule === 'R03'))
+    if (!alerts.some((a) => a.rule === 'R12')) setProximity(null)
+  }, [])
 
-    return () => {
-      isMounted = false
-      window.clearInterval(interval)
-    }
-  }, [isAuthenticated, machineId])
-
-  // 2. Real-Time WebSocket streaming (/ws/live)
+  // REST first paint + tasks; the WebSocket snapshot then keeps it current.
   useEffect(() => {
-    if (!isAuthenticated) return undefined
+    if (!session) return undefined
+    fetchSnapshot(machineId).then(applySnapshot).catch((e) => console.warn('Snapshot unavailable:', e.message))
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setState runs after the fetch resolves
+    loadTasks()
+    const interval = setInterval(loadTasks, 60000)
+    return () => clearInterval(interval)
+  }, [session, machineId, applySnapshot, loadTasks])
 
+  useEffect(() => {
+    if (!session) return undefined
     const client = new LiveWebSocketClient({
       machineId,
-      onStatusChange: (status) => {
-        setWsStatus(status)
+      onStatusChange: setWsStatus,
+      onAuthError: (code) => {
+        if (code === 4401) logout()
+        else setNotice(`Live stream refused (${code === 4403 ? 'not allowed for this machine' : 'unknown machine'})`)
       },
-      onSnapshot: (snapshot) => {
-        if (snapshot?.state) {
-          setLiveData((prev) => ({
-            ...prev,
-            state: snapshot.state,
-            alerts: (snapshot.alerts || []).map(normalizeAlert),
-            isLive: true,
-          }))
-        }
-      },
-      onState: (state) => {
-        setLiveData((prev) => ({
-          ...prev,
-          state: { ...prev.state, ...state },
-        }))
-      },
-      onAlert: (envelope) => {
-        const { action } = envelope
-        const normalized = normalizeAlert(envelope)
-
-        setLiveData((prev) => {
-          let nextAlerts = [...prev.alerts]
-          if (action === 'RAISED') {
-            if (!nextAlerts.some((a) => a.id === normalized.id)) {
-              nextAlerts.unshift(normalized)
-            }
-          } else if (action === 'CLEARED') {
-            nextAlerts = nextAlerts.filter((a) => a.id !== normalized.id)
-            if (normalized.rule === 'R03') {
-              setExitGuardOpen(false)
-            }
-            if (normalized.rule === 'R12' || normalized.rule === 'R13') {
-              setProximityAlertOpen(false)
-            }
-          } else if (action === 'ACKED' || action === 'UPDATED') {
-            nextAlerts = nextAlerts.map((a) => (a.id === normalized.id ? normalized : a))
-          }
-          return { ...prev, alerts: nextAlerts }
-        })
-      },
-      onNudge: (nudge) => {
-        setLiveData((prev) => ({ ...prev, nudge }))
-
-        const spokenText = formatMessage(nudge.message_key, nudge.slots)
-
-        // Hero Feature: R03 Exit Guard Fullscreen Modal
-        if (nudge.display === 'FULLSCREEN' && nudge.rule_id === 'R03') {
-          setExitGuardOpen(true)
-          playAlertTone()
-          if (spokenText) speakNudge(spokenText)
-        }
-
-        // Proximity Alert Nudge (R12 / R13)
-        if (nudge.rule_id === 'R12' || nudge.rule_id === 'R13') {
-          const slots = nudge.slots || {}
-          setProximityDetails({
-            distance_m: slots.distance_m ?? 2.9,
-            sector: slots.sector ?? 'behind you, left side',
-            action: nudge.rule_id === 'R13' ? 'Stop swinging now' : 'Watch perimeter',
+      handlers: {
+        snapshot: applySnapshot,
+        state: (state) => setLive((prev) => ({ ...prev, state, asOf: state.ts })),
+        telemetry: (telemetry) => setLive((prev) => ({ ...prev, telemetry })),
+        hazards: (h) => setLive((prev) => ({ ...prev, hazards: h.pins || [] })),
+        sync: (sync) => setLive((prev) => ({ ...prev, sync })),
+        eta: () => loadTasks(),
+        lesson: (data) => {
+          setLessonTick((n) => n + 1)
+          if (data.deliverable) setNotice('A lesson is ready — open Learn.')
+        },
+        alert: ({ action, alert }) => {
+          const a = normalizeAlert(alert)
+          setLive((prev) => {
+            const rest = prev.alerts.filter((x) => x.id !== a.id)
+            return { ...prev, alerts: action === 'CLEARED' ? rest : sortAlerts([a, ...rest]) }
           })
-          setProximityAlertOpen(true)
-          playAlertTone()
-          if (spokenText) speakNudge(spokenText)
-        }
-
-        // Other audio nudges per policy
-        if (nudge.rule_id !== 'R03' && nudge.rule_id !== 'R12' && nudge.rule_id !== 'R13') {
-          if (nudge.channels?.includes('AUDIO') || nudge.level === 'CRITICAL') {
-            playAlertTone()
-            if (spokenText) speakNudge(spokenText)
+          if (action === 'CLEARED') {
+            if (a.rule === 'R03') setExitGuardOpen(false)
+            if (a.rule === 'R12') setProximity(null)
           }
-        }
+        },
+        nudge: (nudge) => {
+          const critical = nudge.level === 'CRITICAL'
+          if (nudge.display === 'FULLSCREEN' && nudge.rule_id === 'R03') setExitGuardOpen(true)
+          if (nudge.display === 'FULLSCREEN' && nudge.rule_id === 'R12') setProximity(nudge.slots || {})
+          if (critical || nudge.channels?.includes('AUDIO')) {
+            playTone(audioRef, critical)
+            speak(formatMessage(nudge.message_key, nudge.slots), critical)
+          }
+        },
       },
     })
-
-    wsClientRef.current = client
     client.connect()
+    return () => client.disconnect()
+  }, [session, machineId, applySnapshot, loadTasks, logout])
 
-    return () => {
-      client.disconnect()
+  const ackAlert = async (alertId) => {
+    try {
+      const record = await acknowledgeAlert(alertId)
+      const a = normalizeAlert(record)
+      setLive((prev) => ({ ...prev, alerts: prev.alerts.map((x) => (x.id === a.id ? a : x)) }))
+    } catch (error) {
+      setNotice(`Acknowledge failed: ${error.message}`)
     }
-  }, [isAuthenticated, machineId])
-
-  // Critical alert tone audio trigger
-  useEffect(() => {
-    const criticalAlert = liveData.alerts?.find(
-      (alert) => String(alert.level).toLowerCase() === 'critical' || alert.rule === 'R03',
-    )
-
-    if (criticalAlert && criticalAlert.id !== lastCriticalAlertRef.current) {
-      lastCriticalAlertRef.current = criticalAlert.id
-      playAlertTone()
-    }
-
-    if (!criticalAlert) {
-      lastCriticalAlertRef.current = ''
-    }
-  }, [liveData.alerts])
-
-  useEffect(() => {
-    window.localStorage.setItem('cat-readiness-state', JSON.stringify(readinessState))
-  }, [readinessState])
-
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem('cat-jwt')
-      window.localStorage.removeItem('cat-operator-id')
-      window.localStorage.removeItem('cat-operator-role')
-    }
-    wsClientRef.current?.disconnect()
-    setIsAuthenticated(false)
   }
 
-  if (!isAuthenticated) {
+  const handleEndShift = async () => {
+    const note = window.prompt('Handover note for the next operator (optional):', '')
+    if (note === null) return
+    try {
+      await endShift(machineId, note)
+    } catch (error) {
+      setNotice(`End shift failed: ${error.message}`)
+      return
+    }
+    logout()
+  }
+
+  if (!session) {
     return (
       <AuthScreen
-        onUnlock={async ({ badgeId, pin, machineId: chosenMachine }) => {
-          const result = await loginWithBadgeAndPin(badgeId, pin, chosenMachine)
-          if (result?.token) {
-            setMachineId(chosenMachine)
-            setIsAuthenticated(true)
+        onUnlock={async ({ badgeId, pin, machineId: chosen }) => {
+          await login(badgeId, pin, chosen)
+          setMachineId(chosen)
+          setSession(getSession())
+          try {
+            const res = await startShift(chosen)
+            setNotice(res.previous_handover_note ? `Handover note: ${res.previous_handover_note}` : '')
+          } catch (error) {
+            setNotice(`Shift not started: ${error.message}`)
           }
+          setReadinessOpen(true)
         }}
       />
     )
   }
 
-  const isWsLive = wsStatus === 'connected'
+  const state = live.state
+  const isLive = wsStatus === 'connected' && state && !state.data_stale
+  const statusLabel = wsStatus !== 'connected' ? 'Offline' : !state ? 'Waiting' : state.data_stale ? 'Data stale' : 'Live'
+  const r03 = live.alerts.find((a) => a.rule === 'R03')
+  const r12 = live.alerts.find((a) => a.rule === 'R12')
 
   return (
     <div className="app-shell">
-      <SafetyStrip alerts={liveData.alerts} />
+      <SafetyStrip alerts={live.alerts} stale={!isLive} statusLabel={statusLabel} />
 
       <header className="app-header">
         <div>
           <p className="brand-mark">Operator Companion</p>
-          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Machine {machineId}</span>
+          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+            {machineId} · {session.operatorName || session.operatorId}
+          </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div className="online-indicator">
-            <span className={`status-dot ${isWsLive ? 'success' : liveData.isLive ? 'warning' : 'danger'}`} />
+          <div className="online-indicator" title={live.asOf ? `As of ${new Date(live.asOf).toLocaleTimeString()}` : ''}>
+            <span className={`status-dot ${isLive ? 'success' : wsStatus === 'connected' ? 'warning' : 'danger'}`} />
             <span className="online-text">
-              {isWsLive ? 'Live Stream' : liveData.isLive ? 'Polling' : 'Offline'}
+              {statusLabel}
+              {!isLive && live.asOf ? ` · as of ${new Date(live.asOf).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}` : ''}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            style={{
-              background: 'transparent',
-              border: '1px solid #4b5563',
-              borderRadius: '0.25rem',
-              color: '#9ca3af',
-              fontSize: '0.7rem',
-              padding: '0.2rem 0.4rem',
-              cursor: 'pointer',
-            }}
-          >
-            Switch
-          </button>
+          <button type="button" className="header-button" onClick={handleEndShift}>End shift</button>
+          <button type="button" className="header-button" onClick={logout}>Switch</button>
         </div>
       </header>
+
+      {notice && (
+        <div className="notice-bar" onClick={() => setNotice('')} role="status">
+          {notice} <span style={{ opacity: 0.6 }}>✕</span>
+        </div>
+      )}
 
       {!readinessOpen && !exitGuardOpen && (
         <button
@@ -333,20 +281,26 @@ export default function App() {
       <main className="main-content">
         {tab === 'dashboard' && (
           <Dashboard
+            machineId={machineId}
+            operatorId={session.operatorId}
+            operatorName={session.operatorName}
             showExitGuard={() => setExitGuardOpen(true)}
             showHazardReport={() => setHazardReportOpen(true)}
             showReadiness={() => setReadinessOpen(true)}
-            onSelectAlert={(alert) => setSelectedAlertForWhy(alert)}
-            alerts={liveData.alerts}
-            state={{ ...liveData.state, readiness: readinessState.rating }}
-            tasks={liveData.tasks}
+            onSelectAlert={(alert) => setWhyAlertId(alert.id)}
+            alerts={live.alerts}
+            state={state}
+            telemetry={isLive ? live.telemetry : null}
+            tasks={tasks}
+            lastReadiness={lastReadiness}
           />
         )}
-        {tab === 'safety' && <Safety state={liveData.state} alerts={liveData.alerts} />}
-        {tab === 'tasks' && <Tasks tasks={liveData.tasks} />}
-        {tab === 'training' && <Training />}
-        {tab === 'site' && <SiteMap />}
-        {tab === 'scorecard' && <Scorecard state={liveData.state} />}
+        {tab === 'safety' && (
+          <Safety state={state} telemetry={isLive ? live.telemetry : null} alerts={live.alerts} onSelectAlert={(a) => setWhyAlertId(a.id)} />
+        )}
+        {tab === 'tasks' && <Tasks tasks={tasks} onChanged={loadTasks} onError={setNotice} />}
+        {tab === 'training' && <Training refreshKey={lessonTick} />}
+        {tab === 'site' && <SiteMap hazards={live.hazards} telemetry={isLive ? live.telemetry : null} machineId={machineId} />}
       </main>
 
       <nav className="bottom-nav">
@@ -363,56 +317,20 @@ export default function App() {
         ))}
       </nav>
 
-      {/* Simulator Control Bar for Hackathon Demos & Live Testing */}
-      <SimControlBar machineId={machineId} />
+      {session.role === 'admin' && <SimControlBar machineId={machineId} />}
 
-      {/* Alert Explainer ("Why?") Modal */}
-      {selectedAlertForWhy && (
-        <AlertWhyModal
-          alertId={selectedAlertForWhy.id}
-          onClose={() => setSelectedAlertForWhy(null)}
-          onAlertAcked={(ackedId) => {
-            setLiveData((prev) => ({
-              ...prev,
-              alerts: prev.alerts.map((a) =>
-                a.id === ackedId ? { ...a, acknowledgedAt: new Date().toISOString() } : a,
-              ),
-            }))
-          }}
-        />
+      {whyAlertId && (
+        <AlertWhyModal alertId={whyAlertId} onClose={() => setWhyAlertId(null)} onAck={ackAlert} />
       )}
 
-      {/* Dynamic Proximity Alert */}
-      {proximityAlertOpen && (
-        <div className="proximity-overlay" role="dialog" aria-modal="true">
+      {proximity && (
+        <div className="proximity-overlay" role="alertdialog" aria-modal="true">
           <div className="proximity-alert-card">
             <div className="proximity-alert-topbar">
               <div className="proximity-pill">
                 <span className="proximity-icon">🔊</span>
                 Voice alert on
               </div>
-              <button
-                type="button"
-                className="proximity-close"
-                onClick={() => setProximityAlertOpen(false)}
-                style={{
-                  fontSize: '1.25rem',
-                  fontWeight: 800,
-                  width: '44px',
-                  height: '44px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  border: 'none',
-                  color: '#fff',
-                  cursor: 'pointer',
-                }}
-                aria-label="Close proximity alert"
-              >
-                ✕
-              </button>
             </div>
 
             <div className="proximity-title-wrap">
@@ -420,7 +338,7 @@ export default function App() {
               <h2>PERSON<br />BEHIND</h2>
             </div>
 
-            <p className="proximity-subtitle">{proximityDetails.action}</p>
+            <p className="proximity-subtitle">{formatMessage('nudge.proximity.person_behind', proximity)}</p>
 
             <div className="proximity-visual">
               <div className="proximity-zone" />
@@ -428,91 +346,47 @@ export default function App() {
                 <div className="machine-body" />
                 <div className="machine-pointer" />
               </div>
-              <div className="rear-camera-tag">Rear camera</div>
+              <div className="rear-camera-tag">Rear sensor</div>
             </div>
 
-            <div className="proximity-distance">{proximityDetails.distance_m} m</div>
-            <div className="proximity-caption">away · {proximityDetails.sector}</div>
-
-            <div className="proximity-status-row">
-              <span className="proximity-status danger">● Danger 0 - 3.6 m</span>
-              <span className="proximity-status warning">● Watch 3.6 - 8 m</span>
+            <div className="proximity-distance">
+              {proximity.distance_m ?? live.telemetry?.proximity?.min_dist_m ?? '—'} m
             </div>
+            <div className="proximity-caption">away · {proximity.sector ?? live.telemetry?.proximity?.sector ?? 'sector unknown'}</div>
 
-            <button
-              type="button"
-              onClick={() => setProximityAlertOpen(false)}
-              style={{
-                width: '100%',
-                marginTop: '1rem',
-                padding: '0.85rem',
-                borderRadius: '0.5rem',
-                background: '#dc2626',
-                color: '#fff',
-                border: 'none',
-                fontWeight: 800,
-                fontSize: '1rem',
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(220, 38, 38, 0.4)',
-              }}
-            >
-              Acknowledge & Stop Swing
-            </button>
+            {r12 && !r12.acknowledgedAt ? (
+              <button type="button" className="proximity-ack" onClick={() => ackAlert(r12.id)}>
+                Acknowledge — stop swing
+              </button>
+            ) : (
+              <p className="proximity-caption">Acknowledged — clears when the area is clear.</p>
+            )}
+            {!r12 && (
+              <button type="button" className="proximity-ack" onClick={() => setProximity(null)}>Close</button>
+            )}
           </div>
         </div>
       )}
 
-      {/* Incident / Hazard SOS Modal */}
       {hazardReportOpen && (
-        <HazardReportModal
-          onClose={() => setHazardReportOpen(false)}
-          onSubmit={async ({ type, description }) => {
-            await createIncident({
-              type: type?.toUpperCase().replace(/\s+/g, '_') || 'INCIDENT',
-              description: description || `Reported by operator: ${type || 'Incident'}`,
-              machine_id: machineId,
-            })
-            setHazardReportOpen(false)
-          }}
-        />
+        <HazardReportModal machineId={machineId} onClose={() => setHazardReportOpen(false)} onDone={setNotice} />
       )}
 
-      {/* Exit Guard Modal connected to live exit_checks */}
       {exitGuardOpen && (
         <ExitGuardModal
+          exitChecks={state?.exit_checks || {}}
+          activeAlert={r03}
+          stale={!isLive}
+          onAcknowledge={() => r03 && ackAlert(r03.id)}
           onClose={() => setExitGuardOpen(false)}
-          exitChecks={liveData.state?.exit_checks || {}}
-          activeAlert={liveData.alerts?.find((a) => a.rule === 'R03' && a.active)}
-          onAcknowledge={async () => {
-            const r03 = liveData.alerts?.find((a) => a.rule === 'R03')
-            if (r03?.id) {
-              await acknowledgeAlert(r03.id)
-              setLiveData((prev) => ({
-                ...prev,
-                alerts: prev.alerts.map((a) =>
-                  a.id === r03.id ? { ...a, acknowledgedAt: new Date().toISOString() } : a,
-                ),
-              }))
-            }
-          }}
         />
       )}
 
-      {/* Readiness Modal */}
       {readinessOpen && (
         <ReadinessModal
+          machineId={machineId}
           onClose={() => setReadinessOpen(false)}
-          onSubmit={async (next) => {
-            const payload = await submitReadiness(next)
-            setReadinessState({
-              score: payload.score ?? next.score,
-              rating: payload.rating ?? next.rating,
-              reasons: payload.reasons ?? next.reasons,
-            })
-            window.localStorage.setItem('cat-readiness-onboarded', 'true')
-          }}
+          onSaved={setLastReadiness}
         />
       )}
     </div>

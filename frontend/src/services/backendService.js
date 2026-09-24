@@ -1,400 +1,150 @@
-import { ALERTS as fallbackAlerts, TASKS as fallbackTasks } from '../data/mockData'
-import { BACKEND_STATE, BACKEND_ALERTS, BACKEND_TASKS, BACKEND_NUDGE } from '../data/backendContract'
+// REST client for edge-api (contracts/rest.md). No mock fallbacks: when the edge is
+// unreachable the UI shows "offline" instead of made-up data (I1, I6).
 import { formatMessage } from '../data/i18n'
 
-const getHost = () => (typeof window !== 'undefined' ? window.location.hostname : 'localhost')
-const getProtocol = () => (typeof window !== 'undefined' ? window.location.protocol : 'http:')
-
-export const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  `${getProtocol()}//${getHost()}:8000`
-).replace(/\/$/, '')
-
+// Default: same origin through the Vite proxy (/api -> :8000, /ws -> :8000), so the tablet
+// only needs to reach the dev/preview server and no CORS setup is needed.
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
 export const WS_BASE_URL = (
   import.meta.env.VITE_WS_BASE_URL ||
-  `${getProtocol() === 'https:' ? 'wss:' : 'ws:'}//${getHost()}:8000`
+  `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
 ).replace(/\/$/, '')
 
-export function getAuthToken() {
-  if (typeof window === 'undefined') return null
-  return window.localStorage.getItem('cat-jwt') || null
+const store = window.localStorage
+export const AUTH_EXPIRED_EVENT = 'cat-auth-expired'
+
+export const getAuthToken = () => store.getItem('cat-jwt')
+export const getStoredMachineId = () => store.getItem('cat-machine-id') || 'EXC001'
+export const getSession = () => ({
+  operatorId: store.getItem('cat-operator-id'),
+  operatorName: store.getItem('cat-operator-name'),
+  role: store.getItem('cat-operator-role') || 'operator',
+})
+
+export function clearSession() {
+  ;['cat-jwt', 'cat-operator-id', 'cat-operator-name', 'cat-operator-role'].forEach((k) => store.removeItem(k))
 }
 
-export function getStoredMachineId() {
-  if (typeof window === 'undefined') return 'EXC001'
-  return window.localStorage.getItem('cat-machine-id') || 'EXC001'
+// FastAPI's `detail` is a string for a plain HTTPException, or a pydantic validation array
+// (`[{loc, msg, ...}]`) for a 422 — turn either into one line, never raw JSON on screen.
+function formatDetail(detail) {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const lines = detail.map((e) => {
+      const field = Array.isArray(e?.loc) ? e.loc.filter((p) => p !== 'body').join('.') : ''
+      return field ? `${field}: ${e.msg}` : e?.msg || 'invalid'
+    })
+    if (lines.length) return lines.join('; ')
+  }
+  return 'Request failed'
 }
 
-export function getAuthHeaders() {
+export class ApiError extends Error {
+  constructor(status, detail) {
+    super(formatDetail(detail))
+    this.status = status
+  }
+}
+
+async function request(path, { body, method = body ? 'POST' : 'GET', auth = true } = {}) {
+  const headers = {}
   const token = getAuthToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
-const readJson = async (response) => {
-  try {
-    return await response.json()
-  } catch {
-    return null
-  }
-}
-
-async function requestJson(path, options = {}) {
-  const headers = new Headers(options.headers || {})
-  const token = getAuthToken()
-
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
-  }
-
-  if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json')
-  }
+  if (auth && token) headers.Authorization = `Bearer ${token}`
+  if (body && !(body instanceof FormData)) headers['Content-Type'] = 'application/json'
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
+    method,
     headers,
+    body: body && !(body instanceof FormData) ? JSON.stringify(body) : body,
   })
-
+  const data = await response.json().catch(() => null)
   if (!response.ok) {
-    const data = await readJson(response)
-    throw new Error(data?.detail || `Request failed: ${response.status}`)
+    if (response.status === 401 && auth) window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
+    throw new ApiError(response.status, data?.detail || `Request failed: ${response.status}`)
   }
-
-  return readJson(response)
+  return data
 }
 
-export const normalizeAlert = (item) => {
-  const alert = item?.alert ?? item
-  const level = String(alert.level || 'info').toLowerCase()
+const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—')
 
+// alert.v1 envelope or a bare SafetyAlert record -> view model
+export function normalizeAlert(item) {
+  const alert = item?.alert ?? item
   return {
     id: alert.alert_id,
-    level,
+    level: String(alert.level || 'INFO').toLowerCase(),
     title: alert.subject || 'Alert',
-    message: formatMessage(alert.message_key, alert.slots) || alert.message_key || 'Safety Alert',
-    time: alert.ts ? new Date(alert.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Now',
-    rule: alert.rule_id || 'R00',
-    schema: item?.schema || 'alert.v1',
-    action: item?.action || 'RAISED',
-    messageKey: alert.message_key,
-    slots: alert.slots || {},
+    message: formatMessage(alert.message_key, alert.slots),
+    time: clock(alert.ts),
+    ts: alert.ts,
+    rule: alert.rule_id,
     acknowledgedAt: alert.acknowledged_at || null,
     active: alert.active ?? true,
     channels: alert.channels || ['VISUAL'],
   }
 }
 
-const normalizeTask = (task) => {
-  const plannedQuantity = Number(task.planned_quantity || 0)
-  const actualQuantity = Number(task.actual_quantity || 0)
+const LEVEL_RANK = { critical: 0, warning: 1, caution: 2, info: 3 }
+export const sortAlerts = (alerts) =>
+  [...alerts].sort((a, b) => (LEVEL_RANK[a.level] ?? 9) - (LEVEL_RANK[b.level] ?? 9) || String(b.ts).localeCompare(String(a.ts)))
 
-  const progress = plannedQuantity > 0
-    ? Math.min(100, Math.round((actualQuantity / plannedQuantity) * 100))
-    : task.status === 'DONE'
-      ? 100
-      : 0
-
+// task.v1 -> view model
+export function normalizeTask(task) {
+  const planned = Number(task.planned_quantity || 0)
+  const actual = Number(task.actual_quantity || 0)
+  const pred = task.prediction
   return {
     id: task.task_id,
-    title: `${task.task_type_id || 'Task'} — ${task.zone_id || 'Zone'}`,
-    location: task.zone_id || 'Site A',
-    status: String(task.status || 'SCHEDULED').toLowerCase().replace('_', '-'),
-    eta: task.prediction?.eta
-      ? new Date(task.prediction.eta).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-      : '—',
-    progress,
-    schema: task.schema,
-    taskId: task.task_id,
-    taskType: task.task_type_id,
-    prediction: task.prediction,
+    title: `${task.task_type_id} — ${task.zone_id || 'Zone'}`,
+    location: [task.zone_id, task.soil_type].filter(Boolean).join(' · '),
+    status: task.status,
+    eta: clock(pred?.eta),
+    etaLabel: pred?.label || (pred ? `p50 ${Math.round(pred.p50_min)} min` : null),
+    progress: task.status === 'DONE' ? 100 : planned > 0 ? Math.min(100, Math.round((actual / planned) * 100)) : 0,
+    prediction: pred,
+    scheduledStart: clock(task.scheduled_start),
   }
 }
 
-export async function fetchOperatorData(machineId = 'EXC001') {
-  try {
-    const headers = getAuthHeaders()
-    const [stateResponse, tasksResponse] = await Promise.all([
-      fetch(`${API_BASE_URL}/state/current?machine=${machineId}`, { headers }).catch(() => null),
-      fetch(`${API_BASE_URL}/tasks?shift_id=SH-20260923-EXC001-D`, { headers }).catch(() => null),
-    ])
-
-    const snapshot = stateResponse && stateResponse.ok ? await stateResponse.json() : null
-    const tasksData = tasksResponse && tasksResponse.ok ? await tasksResponse.json() : BACKEND_TASKS
-    const taskList = Array.isArray(tasksData) ? tasksData : Array.isArray(tasksData?.items) ? tasksData.items : BACKEND_TASKS
-
-    // The backend /state/current returns a Snapshot { as_of, state, alerts, hazards, sync, eta }
-    const statePayload = snapshot?.state || BACKEND_STATE
-    const alertList = Array.isArray(snapshot?.alerts)
-      ? snapshot.alerts
-      : (Array.isArray(statePayload?.alerts) ? statePayload.alerts : BACKEND_ALERTS)
-
-    return {
-      state: statePayload,
-      alerts: alertList.map(normalizeAlert),
-      tasks: taskList.map(normalizeTask),
-      nudge: BACKEND_NUDGE,
-      hazards: snapshot?.hazards || null,
-      sync: snapshot?.sync || null,
-      eta: snapshot?.eta || null,
-      isLive: Boolean(snapshot),
-    }
-  } catch (error) {
-    console.warn('Backend unavailable, falling back to mock data:', error)
-    return {
-      state: BACKEND_STATE,
-      alerts: fallbackAlerts,
-      tasks: fallbackTasks,
-      nudge: BACKEND_NUDGE,
-      isLive: false,
-    }
-  }
+export async function login(badgeId, pin, machineId) {
+  const result = await request('/auth/login', { body: { badge_id: badgeId, pin, machine_id: machineId }, auth: false })
+  store.setItem('cat-jwt', result.token)
+  store.setItem('cat-machine-id', machineId)
+  store.setItem('cat-operator-id', result.operator.operator_id)
+  store.setItem('cat-operator-name', result.operator.name)
+  store.setItem('cat-operator-role', result.operator.role)
+  return result
 }
 
-export async function acknowledgeAlert(alertId) {
-  try {
-    return await requestJson(`/alerts/${alertId}/ack`, { method: 'POST' })
-  } catch (error) {
-    console.warn(`Failed to acknowledge alert ${alertId}:`, error)
-    return null
-  }
+export const startShift = (machineId) => request('/shift/start', { body: { machine_id: machineId } })
+export const endShift = (machineId, handoverNote) =>
+  request('/shift/end', { body: { machine_id: machineId, handover_note: handoverNote || null } })
+
+export const fetchSnapshot = (machineId) => request(`/state/current?machine=${encodeURIComponent(machineId)}`)
+export const fetchTasks = (machineId) => request(`/tasks?machine=${encodeURIComponent(machineId)}`)
+export const setTaskStatus = (taskId, status) => request(`/tasks/${taskId}/status`, { body: { status } })
+
+export const acknowledgeAlert = (alertId) => request(`/alerts/${alertId}/ack`, { method: 'POST' })
+export const fetchAlertWhy = (alertId) => request(`/alerts/${alertId}/why`)
+
+// body: readiness inputs (edge/api/readiness.py ReadinessIn); the server computes the score.
+export const submitReadiness = (body) => request('/readiness', { body })
+
+export const fetchAssignedLessons = () => request('/lessons/assigned')
+export const fetchLesson = (assignmentId) => request(`/lessons/${assignmentId}`)
+export const completeLesson = (assignmentId, score, answers = []) =>
+  request(`/lessons/${assignmentId}/complete`, { body: { score, answers } })
+
+// incident: {type, category, severity_self, transcript?, machine_id?, create_hazard?}
+export function createIncident(incident, { voice, photos = [] } = {}) {
+  const form = new FormData()
+  form.append('incident', JSON.stringify(incident))
+  if (voice) form.append('voice', voice)
+  photos.slice(0, 3).forEach((p) => form.append('photos', p))
+  return request('/incidents', { body: form })
 }
 
-export async function fetchAlertWhy(alertId) {
-  try {
-    return await requestJson(`/alerts/${alertId}/why`)
-  } catch (error) {
-    console.warn(`Failed to fetch why for alert ${alertId}:`, error)
-    return null
-  }
-}
-
-export async function fetchSystemStatus() {
-  try {
-    return await requestJson('/system/status')
-  } catch (error) {
-    console.warn('System status fetch failed:', error)
-    return null
-  }
-}
-
-export async function fetchSimScenarios() {
-  try {
-    return await requestJson('/sim/scenarios')
-  } catch (error) {
-    console.warn('Sim scenarios fetch failed:', error)
-    return { mode: 'replay', scenarios: ['reset', 'unsafe_exit', 'safe_exit', 'proximity_intrusion', 'drive_into_zone', 'dtc_1638_16'] }
-  }
-}
-
-export async function triggerSimScenario(name, speed = 1.0, machineId = 'EXC001') {
-  try {
-    return await requestJson('/sim/scenario', {
-      method: 'POST',
-      body: JSON.stringify({ name, speed, machine_id: machineId }),
-    })
-  } catch (error) {
-    console.warn(`Failed to trigger scenario ${name}:`, error)
-    throw error
-  }
-}
-
-export async function stopSimScenario() {
-  try {
-    return await requestJson('/sim/stop', { method: 'POST' })
-  } catch (error) {
-    console.warn('Failed to stop scenario:', error)
-    return null
-  }
-}
-
-export async function submitReadiness(payload) {
-  try {
-    const result = await requestJson('/readiness', {
-      method: 'POST',
-      body: JSON.stringify({
-        score: payload?.score ?? 0,
-        rating: payload?.rating ?? 'GREEN',
-        reasons: Array.isArray(payload?.reasons) ? payload.reasons : [],
-        ts: new Date().toISOString(),
-      }),
-    })
-
-    return result || {
-      score: payload?.score ?? 0,
-      rating: payload?.rating ?? 'GREEN',
-      reasons: Array.isArray(payload?.reasons) ? payload.reasons : [],
-    }
-  } catch (error) {
-    console.warn('Readiness submit unavailable; keeping local result only:', error)
-    return {
-      score: payload?.score ?? 0,
-      rating: payload?.rating ?? 'GREEN',
-      reasons: Array.isArray(payload?.reasons) ? payload.reasons : [],
-    }
-  }
-}
-
-export async function fetchAssignedLessons() {
-  try {
-    const result = await requestJson('/lessons/assigned')
-    const list = Array.isArray(result) ? result : Array.isArray(result?.items) ? result.items : Array.isArray(result?.lessons) ? result.lessons : []
-    return list
-  } catch (error) {
-    console.warn('Lessons fetch failed, falling back to static list:', error)
-    return []
-  }
-}
-
-export async function completeLesson(lessonId, payload = {}) {
-  try {
-    return await requestJson(`/lessons/${lessonId}/complete`, {
-      method: 'POST',
-      body: JSON.stringify({
-        score: payload.score ?? 100,
-        answers: Array.isArray(payload.answers) ? payload.answers : [],
-      }),
-    })
-  } catch (error) {
-    console.warn('Lesson completion failed:', error)
-    return { ok: true }
-  }
-}
-
-export async function fetchScorecard(operatorId = 'OP1001', period = 'day') {
-  try {
-    const result = await requestJson(`/scorecard/${operatorId}?period=${period}`)
-    return result || {
-      operator_id: operatorId,
-      period,
-      score: 88,
-      rating: 'GREEN',
-      metrics: [],
-    }
-  } catch (error) {
-    console.warn('Scorecard fetch failed, using demo values:', error)
-    return {
-      operator_id: operatorId,
-      period,
-      score: 88,
-      rating: 'GREEN',
-      metrics: [],
-    }
-  }
-}
-
-export async function fetchHazards() {
-  try {
-    const result = await requestJson('/hazards?bbox=0,0,1000,1000')
-    const items = Array.isArray(result) ? result : Array.isArray(result?.items) ? result.items : Array.isArray(result?.hazards) ? result.hazards : []
-    return items
-  } catch (error) {
-    console.warn('Hazards fetch failed:', error)
-    return []
-  }
-}
-
-export async function createHazardPin(payload = {}) {
-  try {
-    return await requestJson('/hazards', {
-      method: 'POST',
-      body: JSON.stringify({
-        type: payload.type || 'OTHER',
-        radius_m: payload.radius_m ?? 6,
-        x_m: payload.x_m ?? 0,
-        y_m: payload.y_m ?? 0,
-        description: payload.description || 'Operator report',
-        status: payload.status || 'ACTIVE',
-      }),
-    })
-  } catch (error) {
-    console.warn('Hazard create failed:', error)
-    return { ok: true }
-  }
-}
-
-export async function createIncident(payload = {}, extras = {}) {
-  try {
-    const formData = new FormData()
-    formData.append('payload', JSON.stringify({
-      schema: 'incident.v1',
-      type: payload.type || 'INCIDENT',
-      severity: payload.severity || 'MEDIUM',
-      description: payload.description || 'Operator report',
-      machine_id: payload.machine_id || 'EXC001',
-      created_by: payload.created_by || 'operator',
-      ...payload,
-    }))
-
-    if (extras.voice) {
-      formData.append('voice', extras.voice)
-    }
-
-    ;(extras.photos || []).slice(0, 3).forEach((photo, index) => {
-      formData.append(`photo_${index}`, photo)
-    })
-
-    return await requestJson('/incidents', {
-      method: 'POST',
-      body: formData,
-    })
-  } catch (error) {
-    console.warn('Incident create failed:', error)
-    return { ok: true }
-  }
-}
-
-export async function loginWithBadgeAndPin(badgeId, pin, machineId = 'EXC001') {
-  const payload = { badge_id: badgeId, pin, machine_id: machineId }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-
-    if (!response.ok) {
-      const detail = await response.json().catch(() => null)
-      throw new Error(detail?.detail || 'Invalid badge ID or PIN')
-    }
-
-    const result = await response.json()
-    const token = result?.token
-
-    if (!token) {
-      throw new Error('Backend did not return a JWT token')
-    }
-
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('cat-jwt', token)
-      window.localStorage.setItem('cat-machine-id', machineId)
-      if (result?.operator?.operator_id) {
-        window.localStorage.setItem('cat-operator-id', result.operator.operator_id)
-      }
-      if (result?.operator?.role) {
-        window.localStorage.setItem('cat-operator-role', result.operator.role)
-      }
-    }
-
-    return result
-  } catch (error) {
-    console.warn('Auth login failed against live backend:', error.message)
-    // Check if network failed completely (offline demo mode)
-    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('cat-jwt', 'demo-jwt-token')
-        window.localStorage.setItem('cat-operator-id', badgeId || 'EMP1001')
-        window.localStorage.setItem('cat-machine-id', machineId)
-      }
-
-      return {
-        token: 'demo-jwt-token',
-        operator: { operator_id: badgeId || 'EMP1001', role: badgeId === 'SUP001' ? 'admin' : 'operator' },
-        shift: { shift_id: 'SH-20260923-EXC001-D' },
-        verified: true,
-        offlineDemo: true,
-      }
-    }
-    throw error
-  }
-}
+export const fetchSimScenarios = () => request('/sim/scenarios')
+export const triggerSimScenario = (name, speed, machineId) =>
+  request('/sim/scenario', { body: { name, speed, machine_id: machineId } })
+export const stopSimScenario = () => request('/sim/stop', { method: 'POST' })

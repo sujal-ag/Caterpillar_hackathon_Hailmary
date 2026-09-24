@@ -1,6 +1,10 @@
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import process from 'node:process'
 import { defineConfig } from 'vite'
+
+// edge-api address as seen from the dev/preview server (the tablet only talks to this server).
+const EDGE = process.env.EDGE_API_URL || 'http://localhost:8000'
 
 export default defineConfig({
   plugins: [
@@ -28,14 +32,15 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    fs: { allow: ['..'] }, // contracts/i18n/en.json lives outside frontend/
     proxy: {
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: EDGE.replace(/^http/, 'ws'),
         ws: true,
         changeOrigin: true,
       },
       '/api': {
-        target: 'http://localhost:8000',
+        target: EDGE,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },

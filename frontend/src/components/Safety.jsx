@@ -1,74 +1,46 @@
-export default function Safety({ state = {}, alerts = [] }) {
-  const hasSeatbeltAlert = alerts.some(
-    (a) => (a.rule === 'R01' || a.rule === 'R02' || a.rule === 'R07') && a.active !== false,
-  )
-  const hasProximityAlert = alerts.some(
-    (a) => (a.rule === 'R12' || a.rule === 'R13') && a.active !== false,
-  )
-  const hasTiltAlert = alerts.some(
-    (a) => (a.rule === 'R10' || a.rule === 'R11') && a.active !== false,
-  )
+// Live values come from telemetry.v1; a missing/stale value shows "Unknown", never OK (I1).
+const row = (label, value, ok) => ({ label, value: value ?? 'Unknown', ok: value == null ? null : ok })
+
+export default function Safety({ state, telemetry, alerts = [], onSelectAlert }) {
+  const t = telemetry || {}
+  const has = (...rules) => alerts.some((a) => rules.includes(a.rule))
+  const height = t.implement?.bucket_height_m
+  const dist = t.proximity?.min_dist_m
+  const isWheelLoader = state?.machine_id?.startsWith('WL')
 
   const checks = [
-    {
-      label: 'Seat Belt',
-      value: hasSeatbeltAlert
-        ? 'Unfastened'
-        : state.sensor_health?.seatbelt === 'OK'
-          ? 'Fastened'
-          : 'Sensor Check',
-      ok: !hasSeatbeltAlert && state.sensor_health?.seatbelt === 'OK',
-    },
-    {
-      label: 'Hydraulics',
-      value: state.exit_checks?.HYD_UNLOCKED === 'FAIL' ? 'Unlocked' : 'Locked',
-      ok: state.exit_checks?.HYD_UNLOCKED !== 'FAIL',
-    },
-    {
-      label: 'Bucket Height',
-      value: state.exit_checks?.IMPLEMENT_RAISED === 'FAIL' ? 'Raised' : 'Lowered',
-      ok: state.exit_checks?.IMPLEMENT_RAISED !== 'FAIL',
-    },
-    {
-      label: 'Parking Brake',
-      value: state.exit_checks?.PARK_BRAKE_OFF === 'PASS' ? 'Applied' : 'Released',
-      ok: state.exit_checks?.PARK_BRAKE_OFF !== 'FAIL',
-    },
-    {
-      label: 'Engine',
-      value: state.exit_checks?.ENGINE_RUNNING === 'FAIL' ? 'Running' : 'Stopped',
-      ok: state.exit_checks?.ENGINE_RUNNING !== 'FAIL',
-    },
-    {
-      label: 'Slope / Stability',
-      value: hasTiltAlert || state.exit_checks?.SLOPE === 'FAIL' ? 'Caution' : 'Stable',
-      ok: !hasTiltAlert && state.exit_checks?.SLOPE !== 'FAIL',
-    },
-    {
-      label: 'Proximity Zone',
-      value: hasProximityAlert ? 'PERSON IN PERIMETER' : 'Clear',
-      ok: !hasProximityAlert,
-    },
-  ]
+    row('Seat Belt', t.cab?.seatbelt, t.cab?.seatbelt !== 'FAULT' && !has('R01', 'R02', 'R07')),
+    row('Hydraulics', t.hyd?.lockout, !has('R03')),
+    row('Bucket Height', height != null ? `${height.toFixed(1)} m` : null, !has('R03')),
+    row('Engine', t.engine?.state, true),
+    isWheelLoader && row('Parking Brake', t.motion?.parking_brake, t.motion?.parking_brake === 'ON' || !has('R03')),
+    row(
+      'Slope / Stability',
+      t.motion?.pitch_deg != null ? `pitch ${t.motion.pitch_deg.toFixed(1)}° · roll ${(t.motion.roll_deg ?? 0).toFixed(1)}°` : null,
+      !has('R10', 'R11'),
+    ),
+    row(
+      'Proximity',
+      state?.sensor_health?.proximity !== 'OK' ? null : dist != null ? `${dist} m ${t.proximity.sector || ''}` : 'Clear',
+      !has('R12', 'R13'),
+    ),
+  ].filter(Boolean)
 
-  const activeRules = alerts.map((alert) => ({
-    id: alert.rule,
-    desc: alert.message || alert.title,
-    crit: alert.level === 'critical' || alert.level === 'warning',
-    level: alert.level,
-  }))
+  const health = state?.sensor_health || {}
 
   return (
     <div className="stack gap-4">
       <div className="panel panel-dark">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <p className="eyebrow">Machine Safety Telemetry</p>
-          <span style={{ fontSize: '0.75rem', background: '#065f46', color: '#6ee7b7', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 700 }}>
-            {state.class || 'ACTIVE'}
+          <span className={`status-pill ${state?.class === 'UNSAFE' ? 'danger' : state?.class === 'ATTENTION' ? 'warning' : ''}`}>
+            {state?.class || 'UNKNOWN'}
           </span>
         </div>
         <p className="display-title large">Safety Panel</p>
-        <p className="muted-text">Real-time debounced sensor predicates · 1 Hz</p>
+        <p className="muted-text">
+          Sensors: {Object.entries(health).map(([k, v]) => `${k} ${v}`).join(' · ') || 'unknown'}
+        </p>
       </div>
 
       <div className="status-list">
@@ -76,42 +48,29 @@ export default function Safety({ state = {}, alerts = [] }) {
           <div key={item.label} className="status-row">
             <div className="status-copy">
               <p className="status-label">{item.label}</p>
-              <p className={`status-value ${item.ok ? '' : 'danger'}`}>{item.value}</p>
+              <p className={`status-value ${item.ok === false ? 'danger' : ''}`}>{item.value}</p>
             </div>
             <span className={`status-icon ${item.ok ? 'pass' : 'fail'}`}>
-              {item.ok ? '✓' : '✗'}
+              {item.ok == null ? '?' : item.ok ? '✓' : '✗'}
             </span>
           </div>
         ))}
       </div>
 
       <div className="panel panel-light">
-        <p className="eyebrow">Active Risk Rules ({activeRules.length})</p>
-        {activeRules.length === 0 ? (
+        <p className="eyebrow">Active Risk Rules ({alerts.length})</p>
+        {alerts.length === 0 ? (
           <p style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 600, padding: '0.5rem 0' }}>
-            ✓ No risk rules currently active. All parameters nominal.
+            ✓ No risk rules currently active.
           </p>
         ) : (
           <div className="rule-list">
-            {activeRules.map((rule) => (
-              <div key={rule.id} className="rule-item">
-                <span className="rule-code">{rule.id}</span>
-                <span className="rule-text">{rule.desc}</span>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 800,
-                    letterSpacing: '0.05em',
-                    padding: '0.2rem 0.5rem',
-                    borderRadius: '999px',
-                    background: rule.crit ? '#fef2f2' : '#f0f9ff',
-                    color: rule.crit ? '#dc2626' : '#0284c7',
-                    border: `1px solid ${rule.crit ? '#fecaca' : '#bae6fd'}`,
-                    textTransform: 'uppercase',
-                    flexShrink: 0,
-                  }}
-                >
-                  {rule.level?.toUpperCase() || 'INFO'}
+            {alerts.map((alert) => (
+              <div key={alert.id} className="rule-item" onClick={() => onSelectAlert?.(alert)} style={{ cursor: 'pointer' }}>
+                <span className="rule-code">{alert.rule}</span>
+                <span className="rule-text">{alert.message}</span>
+                <span className={`status-pill ${alert.level === 'critical' ? 'danger' : alert.level === 'info' ? 'info' : 'warning'}`}>
+                  {alert.level.toUpperCase()}
                 </span>
               </div>
             ))}
@@ -130,7 +89,7 @@ export default function Safety({ state = {}, alerts = [] }) {
           lineHeight: 1.4,
         }}
       >
-        <strong>Safety Invariant I2:</strong> Advisory system only. The companion will never command or interlock machine controls. Manual operator authority is always absolute.
+        Advisory only. The companion never commands or interlocks the machine.
       </div>
     </div>
   )

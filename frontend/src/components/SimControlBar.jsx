@@ -1,22 +1,32 @@
-import { useState } from 'react'
-import { triggerSimScenario, stopSimScenario } from '../services/backendService'
+import { useEffect, useState } from 'react'
+import { fetchSimScenarios, triggerSimScenario, stopSimScenario } from '../services/backendService'
 
-const SCENARIOS = [
-  { id: 'unsafe_exit', label: 'Unsafe Exit (R03 Hero)', speed: 4.0 },
-  { id: 'safe_exit', label: 'Safe Exit', speed: 2.0 },
-  { id: 'proximity_intrusion', label: 'Proximity Intrusion (R12/13)', speed: 2.0 },
-  { id: 'dtc_1638_16', label: 'DTC Overheat Alert', speed: 2.0 },
-  { id: 'drive_into_zone', label: 'Drive Into Hazard Zone', speed: 2.0 },
-  { id: 'belt_bypass', label: 'Seatbelt Bypass (R07)', speed: 2.0 },
-  { id: 'tilt_excursion', label: 'Slope/Tilt Caution', speed: 2.0 },
-  { id: 'reset', label: 'Reset (Nominal)', speed: 1.0 },
-]
+// Names come from GET /sim/scenarios; labels are cosmetic.
+const LABELS = {
+  unsafe_exit: 'Unsafe Exit (R03 Hero)',
+  safe_exit: 'Safe Exit',
+  proximity_intrusion: 'Proximity Intrusion (R12/13)',
+  dtc_1638_16: 'DTC Alert',
+  drive_into_zone: 'Drive Into Hazard Zone',
+  belt_bypass: 'Seatbelt Bypass (R07)',
+  tilt_excursion: 'Slope/Tilt Caution',
+  reset: 'Reset (Nominal)',
+}
+const SPEED = 1.0 // real time: debounce windows and the 14 s correction play out as on the machine
 
 export default function SimControlBar({ machineId = 'EXC001', onScenarioTriggered }) {
   const [activeScenario, setActiveScenario] = useState('')
   const [isRunning, setIsRunning] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [msg, setMsg] = useState('')
+  const [scenarios, setScenarios] = useState([])
+
+  useEffect(() => {
+    if (!isExpanded) return
+    fetchSimScenarios()
+      .then((d) => setScenarios(d.scenarios.map((id) => ({ id, label: LABELS[id] || id, speed: SPEED }))))
+      .catch((e) => setMsg(`Scenarios unavailable: ${e.message}`))
+  }, [isExpanded])
 
   const handleRun = async (scenario) => {
     setIsRunning(true)
@@ -38,8 +48,9 @@ export default function SimControlBar({ machineId = 'EXC001', onScenarioTriggere
     try {
       await stopSimScenario()
       setActiveScenario('')
-    } catch {
-      setMsg('Failed to stop scenario.')
+      setMsg('Stopped.')
+    } catch (err) {
+      setMsg(`Stop failed: ${err.message}`)
     } finally {
       setIsRunning(false)
     }
@@ -109,7 +120,7 @@ export default function SimControlBar({ machineId = 'EXC001', onScenarioTriggere
           )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.35rem', maxHeight: '200px', overflowY: 'auto' }}>
-            {SCENARIOS.map((sc) => (
+            {scenarios.map((sc) => (
               <button
                 key={sc.id}
                 type="button"

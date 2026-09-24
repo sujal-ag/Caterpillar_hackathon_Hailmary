@@ -1,187 +1,161 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { submitReadiness } from '../services/backendService'
+import { formatMessage } from '../data/i18n'
 
-export default function ReadinessModal({ onClose, onSubmit }) {
-  const [responses, setResponses] = useState({
-    sleep: 'good',
-    heat: 'normal',
-  })
-  const [reactionMs, setReactionMs] = useState(null)
-  const [reactionState, setReactionState] = useState('idle')
-  const readyAtRef = useRef(null)
-  const timeoutRef = useRef(null)
+// Brief PVT-style test (HLD §7.4): 10 stimuli, random 1–3 s gaps. A reaction slower than
+// 500 ms is a lapse (rules.yaml readiness.lapse_ms_gt). The server computes score + rating.
+const TRIALS = 10
+const LAPSE_MS = 500
+const SLEEP_24 = [[8, '7–8 h+'], [6, '6 h'], [5, '5 h'], [4, '< 5 h']]
+const SLEEP_48 = [[15, '14 h+'], [12, '12–13 h'], [10, '< 12 h']]
+const FEEL = [[5, 'Great'], [4, 'Good'], [3, 'OK'], [2, 'Tired'], [1, 'Unwell']]
 
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    }
-  }, [])
+const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length
+const sd = (xs) => Math.sqrt(mean(xs.map((x) => (x - mean(xs)) ** 2)))
 
-  const startReactionTest = () => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+function Options({ options, value, onChange }) {
+  return (
+    <div className="readiness-option-grid">
+      {options.map(([v, label]) => (
+        <button key={v} type="button" className={`readiness-option ${value === v ? 'selected' : ''}`} onClick={() => onChange(v)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
 
-    const delay = 1200 + Math.random() * 2200
-    setReactionState('waiting')
-    setReactionMs(null)
-    readyAtRef.current = null
+export default function ReadinessModal({ machineId, onClose, onSaved }) {
+  const [sleep24, setSleep24] = useState(8)
+  const [sleep48, setSleep48] = useState(15)
+  const [feel, setFeel] = useState(4)
+  const [times, setTimes] = useState([])
+  const [phase, setPhase] = useState('idle') // idle | waiting | ready | done
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const readyAt = useRef(0)
+  const timer = useRef(null)
 
-    timeoutRef.current = setTimeout(() => {
-      readyAtRef.current = Date.now()
-      setReactionState('ready')
-    }, delay)
+  useEffect(() => () => clearTimeout(timer.current), [])
+
+  const arm = () => {
+    setPhase('waiting')
+    timer.current = setTimeout(() => {
+      readyAt.current = performance.now()
+      setPhase('ready')
+    }, 1000 + Math.random() * 2000)
   }
 
-  const handleReactionTap = () => {
-    if (reactionState === 'waiting') {
-      setReactionState('too-soon')
-      setReactionMs(0)
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-      return
-    }
-
-    if (reactionState === 'ready' && readyAtRef.current) {
-      const measured = Math.max(180, Date.now() - readyAtRef.current)
-      setReactionMs(measured)
-      setReactionState('done')
-      return
-    }
-
-    if (reactionState === 'done' || reactionState === 'idle' || reactionState === 'too-soon') {
-      startReactionTest()
+  const tap = () => {
+    if (phase === 'idle' || phase === 'done') {
+      setTimes([])
+      arm()
+    } else if (phase === 'waiting') {
+      clearTimeout(timer.current) // false start: re-arm this trial
+      arm()
+    } else {
+      const next = [...times, performance.now() - readyAt.current]
+      setTimes(next)
+      if (next.length >= TRIALS) setPhase('done')
+      else arm()
     }
   }
 
-  const result = useMemo(() => {
-    let score = 100
-
-    if (responses.sleep === 'low') score -= 15
-    if (responses.sleep === 'very-low') score -= 30
-
-    if (responses.heat === 'warm') score -= 10
-    if (responses.heat === 'hot') score -= 20
-
-    if (reactionMs == null) {
-      score -= 10
-    } else if (reactionMs > 600) score -= 20
-    else if (reactionMs > 400) score -= 10
-
-    const rating = score >= 75 ? 'GREEN' : score >= 50 ? 'YELLOW' : 'RED'
-    const reasons = []
-
-    if (responses.sleep !== 'good') reasons.push('Sleep recovery')
-    if (responses.heat !== 'normal') reasons.push('Heat stress')
-    if (reactionMs != null && reactionMs > 600) reasons.push('Reaction time')
-
-    return { score: Math.max(0, Math.min(100, score)), rating, reasons }
-  }, [responses, reactionMs])
-
-  const updateResponse = (key, value) => {
-    setResponses((prev) => ({ ...prev, [key]: value }))
+  const save = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      const res = await submitReadiness({
+        machine_id: machineId,
+        sleep_last_24h_h: sleep24,
+        sleep_last_48h_h: Math.max(sleep48, sleep24),
+        feel_score: feel,
+        rt_mean_ms: Math.round(mean(times)),
+        rt_sd_ms: Math.round(sd(times)),
+        rt_lapses: times.filter((t) => t > LAPSE_MS).length,
+        camera_used: false,
+      })
+      setResult(res)
+      onSaved?.(res)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const reactionButtonLabel =
-    reactionState === 'idle'
-      ? 'Start reaction test'
-      : reactionState === 'waiting'
-        ? 'Wait for green…'
-        : reactionState === 'ready'
-          ? 'Tap now!'
-          : reactionState === 'too-soon'
-            ? 'Too soon — retry'
-            : reactionMs
-              ? `${Math.round(reactionMs)} ms`
-              : 'Retry test'
-
-  const reactionButtonClass =
-    reactionState === 'ready' ? 'reaction-button ready' :
-      reactionState === 'done' ? 'reaction-button done' :
-        'reaction-button'
+  const label = {
+    idle: 'Start reaction test',
+    waiting: `Wait for green… (${times.length + 1}/${TRIALS})`,
+    ready: 'Tap now!',
+    done: `${Math.round(mean(times))} ms avg — tap to redo`,
+  }[phase]
 
   return (
     <div className="modal-backdrop soft-backdrop">
-      <div className="readiness-result-modal compact-readiness-modal">
+      <div className="readiness-result-modal compact-readiness-modal" style={{ maxHeight: '92vh', overflowY: 'auto' }}>
         <div className="readiness-topbar">
-          <button type="button" className="circle-button back-button" aria-label="Back" onClick={onClose}>
-            ‹
-          </button>
-
+          <button type="button" className="circle-button back-button" aria-label="Back" onClick={onClose}>‹</button>
           <div className="readiness-header-copy">
             <h2>Operator readiness</h2>
             <p>Check before you start</p>
           </div>
         </div>
 
-        <div className="readiness-form-section">
-          <div className="readiness-input-block">
-            <p className="readiness-check-label">Sleep quality</p>
-            <div className="readiness-option-grid">
-              {['good', 'low', 'very-low'].map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={`readiness-option ${responses.sleep === value ? 'selected' : ''}`}
-                  onClick={() => updateResponse('sleep', value)}
-                >
-                  {value === 'good' ? 'Good (7–8h)' : value === 'low' ? 'Low (<6h)' : 'Very low (<5h)'}
-                </button>
-              ))}
+        {result ? (
+          <div className="readiness-summary-box">
+            <div className="summary-header">
+              <span className="summary-label">Status</span>
+              <span className={`summary-badge ${result.rating.toLowerCase()}`}>{result.rating}</span>
+            </div>
+            <div className="summary-score">{result.score}</div>
+            <ul className="summary-copy" style={{ paddingLeft: '1.1rem' }}>
+              {result.reasons.length === 0 && <li>No concerns found.</li>}
+              {result.reasons.map((r) => <li key={r}>{formatMessage(r)}</li>)}
+            </ul>
+          </div>
+        ) : (
+          <div className="readiness-form-section">
+            <div className="readiness-input-block">
+              <p className="readiness-check-label">Sleep in the last 24 h</p>
+              <Options options={SLEEP_24} value={sleep24} onChange={setSleep24} />
+            </div>
+            <div className="readiness-input-block">
+              <p className="readiness-check-label">Sleep in the last 48 h</p>
+              <Options options={SLEEP_48} value={sleep48} onChange={setSleep48} />
+            </div>
+            <div className="readiness-input-block">
+              <p className="readiness-check-label">How do you feel?</p>
+              <Options options={FEEL} value={feel} onChange={setFeel} />
+            </div>
+            <div className="readiness-input-block reaction-block">
+              <p className="readiness-check-label">Reaction check ({TRIALS} taps)</p>
+              <button
+                type="button"
+                className={`reaction-button ${phase === 'ready' ? 'ready' : phase === 'done' ? 'done' : ''}`}
+                onPointerDown={tap}
+              >
+                {label}
+              </button>
             </div>
           </div>
+        )}
 
-          <div className="readiness-input-block">
-            <p className="readiness-check-label">Heat / comfort</p>
-            <div className="readiness-option-grid">
-              {['normal', 'warm', 'hot'].map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={`readiness-option ${responses.heat === value ? 'selected' : ''}`}
-                  onClick={() => updateResponse('heat', value)}
-                >
-                  {value === 'normal' ? 'Normal' : value === 'warm' ? 'Warm' : 'High heat'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="readiness-input-block reaction-block">
-            <p className="readiness-check-label">Reaction check</p>
-            <button type="button" className={reactionButtonClass} onClick={handleReactionTap}>
-              {reactionButtonLabel}
-            </button>
-            {reactionMs != null && <p className="reaction-time-value">Reaction time: {Math.round(reactionMs)} ms</p>}
-          </div>
-        </div>
-
-        <div className="readiness-summary-box">
-          <div className="summary-header">
-            <span className="summary-label">Status</span>
-            <span className={`summary-badge ${result.rating.toLowerCase()}`}>{result.rating}</span>
-          </div>
-          <div className="summary-score">{result.score}</div>
-          <p className="summary-copy">
-            {result.rating === 'GREEN'
-              ? 'Fit for duty and ready to work.'
-              : result.rating === 'YELLOW'
-                ? 'Continue with caution and monitor closely.'
-                : 'Take a break and retest before continuing.'}
-          </p>
-        </div>
+        {error && <p style={{ color: '#dc2626', fontSize: '0.85rem' }}>{error}</p>}
 
         <div className="readiness-footer-note">
           <span className="info-dot">i</span>
-          <p>This is advice only. It never stops your shift. Camera images are never saved.</p>
+          <p>This is advice only. It never stops your shift.</p>
         </div>
 
-        <button
-          type="button"
-          className="readiness-next-button"
-          onClick={async () => {
-            await onSubmit?.({ score: result.score, rating: result.rating, reasons: result.reasons })
-            onClose()
-          }}
-        >
-          Save readiness
-        </button>
+        {result ? (
+          <button type="button" className="readiness-next-button" onClick={onClose}>Continue</button>
+        ) : (
+          <button type="button" className="readiness-next-button" disabled={phase !== 'done' || busy} onClick={save}>
+            {busy ? 'Saving…' : phase === 'done' ? 'Save readiness' : 'Finish the reaction test first'}
+          </button>
+        )}
       </div>
     </div>
   )

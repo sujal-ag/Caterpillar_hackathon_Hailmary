@@ -1,30 +1,42 @@
-export default function Dashboard({ showExitGuard, showHazardReport, showReadiness, onSelectAlert, alerts = [], state = {}, tasks = [] }) {
-  const activeAlerts = alerts.slice(0, 3)
-  const currentTask = tasks[0] || null
-  const machineId = state.machine_id || 'EXC-001'
-  const operatorName = state.operator_id || 'Operator'
-  const siteLabel = state.site_id || 'Site A'
-  const engineRunning = state.exit_checks?.ENGINE_RUNNING === 'FAIL' || state.class === 'PRODUCTIVE' || state.class === 'ATTENTION_REQUIRED'
-  const readinessValue = state.readiness || 'GREEN'
-  const exitGuardRequired = state.exit_state && state.exit_state !== 'SAFE'
-  const progressValue = currentTask?.progress ?? 0
+const MODEL = { EXC: 'CAT 320', WL: 'CAT 950 GC' }
+const EXIT_LABEL = { UNSAFE: 'Unsafe', SAFE_ENGINE_ON: 'Engine on', SAFE: 'Secured', NONE: 'In cab' }
+const EXIT_TYPE = { UNSAFE: 'danger', SAFE_ENGINE_ON: 'warning', SAFE: 'success', NONE: 'success' }
+const READINESS_TYPE = { RED: 'danger', YELLOW: 'warning', GREEN: 'success' }
+const READINESS_COPY = {
+  RED: 'Take a break and retest before continuing.',
+  YELLOW: 'Continue with caution and monitor conditions.',
+  GREEN: 'Fit for duty and ready to work.',
+}
+
+export default function Dashboard({
+  machineId,
+  operatorId,
+  operatorName,
+  showExitGuard,
+  showHazardReport,
+  showReadiness,
+  onSelectAlert,
+  alerts = [],
+  state,
+  telemetry,
+  tasks = [],
+  lastReadiness,
+}) {
+  const currentTask = tasks.find((t) => t.status === 'IN_PROGRESS') || tasks.find((t) => t.status !== 'DONE') || null
+  const engine = telemetry?.engine?.state // null/undefined = unknown, never assumed
+  const readiness = state?.readiness || lastReadiness?.rating || null
+  const exitState = state?.exit_state
+  const model = MODEL[machineId.replace(/\d+$/, '')] || ''
+  // Live state is the source of truth for who's actually in the machine — a supervisor
+  // viewing another operator's active shift must not see their own name shown as "the operator".
+  const liveOperatorId = state?.operator_id
+  const operatorLabel =
+    !liveOperatorId || liveOperatorId === operatorId ? operatorName || liveOperatorId || 'No operator' : liveOperatorId
 
   const metrics = [
-    {
-      label: 'Readiness',
-      value: readinessValue,
-      type: readinessValue === 'RED' ? 'danger' : readinessValue === 'YELLOW' ? 'warning' : 'success',
-    },
-    {
-      label: 'Exit',
-      value: exitGuardRequired ? 'Check' : 'Clear',
-      type: exitGuardRequired ? 'warning' : 'success',
-    },
-    {
-      label: 'Alerts',
-      value: `${activeAlerts.length}`,
-      type: activeAlerts.length > 0 ? 'danger' : 'success',
-    },
+    { label: 'Readiness', value: readiness || '—', type: READINESS_TYPE[readiness] || 'warning' },
+    { label: 'Exit', value: EXIT_LABEL[exitState] || 'Unknown', type: EXIT_TYPE[exitState] || 'warning' },
+    { label: 'Alerts', value: `${alerts.length}`, type: alerts.length > 0 ? 'danger' : 'success' },
   ]
 
   return (
@@ -32,15 +44,15 @@ export default function Dashboard({ showExitGuard, showHazardReport, showReadine
       <div className="panel panel-dark hero-scene">
         <div className="machine-header">
           <div>
-            <p className="eyebrow">Live scene</p>
-            <p className="display-title">CAT 320 · {machineId}</p>
-            <p className="muted-text">{siteLabel} · {operatorName}</p>
+            <p className="eyebrow">Live scene · {state?.class || 'UNKNOWN'}</p>
+            <p className="display-title">{model} · {machineId}</p>
+            <p className="muted-text">{operatorLabel} · {state?.shift_id || 'no active shift'}</p>
           </div>
           <div className="engine-status-wrap">
             <p className="eyebrow">Engine</p>
             <div className="engine-status">
-              <span className={`status-dot ${engineRunning ? 'success' : 'warning'}`} />
-              <span className="engine-running">{engineRunning ? 'Running' : 'Idle'}</span>
+              <span className={`status-dot ${engine === 'RUNNING' ? 'success' : engine ? 'info' : 'warning'}`} />
+              <span className="engine-running">{engine ? engine[0] + engine.slice(1).toLowerCase() : 'Unknown'}</span>
             </div>
           </div>
         </div>
@@ -59,19 +71,16 @@ export default function Dashboard({ showExitGuard, showHazardReport, showReadine
         <div className="readiness-top-row">
           <div>
             <p className="eyebrow">Operator readiness</p>
-            <p className="panel-title compact-title">{state.readiness || 'GREEN'}</p>
+            <p className="panel-title compact-title">
+              {readiness || 'Not checked'}
+              {lastReadiness?.score != null && ` · ${lastReadiness.score}`}
+            </p>
           </div>
           <button type="button" className="inline-readiness-button" onClick={showReadiness}>
             Check now
           </button>
         </div>
-        <p className="muted-text">
-          {state.readiness === 'RED'
-            ? 'Take a break and retest before continuing.'
-            : state.readiness === 'YELLOW'
-              ? 'Continue with caution and monitor conditions.'
-              : 'Fit for duty and ready to work.'}
-        </p>
+        <p className="muted-text">{READINESS_COPY[readiness] || 'Take the 1-minute check before you start. Advice only.'}</p>
       </div>
 
       <div className="panel panel-light">
@@ -84,20 +93,18 @@ export default function Dashboard({ showExitGuard, showHazardReport, showReadine
           <div className="eta-box">
             <p className="eyebrow">ETA</p>
             <p className="eta-value">{currentTask?.eta || '—'}</p>
+            {currentTask?.etaLabel && <p className="muted-text" style={{ fontSize: '0.7rem' }}>{currentTask.etaLabel}</p>}
           </div>
         </div>
 
-        <div className="progress-block">
-          <div className="progress-header-row">
-            <span>Progress</span>
-            <span className="progress-badge">{progressValue}% complete</span>
+        {currentTask && (
+          <div className="progress-block">
+            <div className="progress-header-row">
+              <span>Progress</span>
+              <span className="progress-badge">{currentTask.progress}% complete</span>
+            </div>
           </div>
-
-          <div className="progress-hint">
-            <div className="progress-value">{progressValue}%</div>
-            <div className="progress-copy">done</div>
-          </div>
-        </div>
+        )}
       </div>
 
       <div className="quick-actions">
@@ -105,8 +112,8 @@ export default function Dashboard({ showExitGuard, showHazardReport, showReadine
           <p className="eyebrow">Pre-exit</p>
           <p className="card-heading">Exit Guard</p>
           <div className="alert-inline">
-            <span className="status-dot critical" />
-            <span className="alert-inline-text">Action required</span>
+            <span className={`status-dot ${exitState === 'UNSAFE' ? 'critical' : 'success'}`} />
+            <span className="alert-inline-text">{exitState === 'UNSAFE' ? 'Action required' : 'View checks'}</span>
           </div>
         </button>
 
@@ -123,13 +130,16 @@ export default function Dashboard({ showExitGuard, showHazardReport, showReadine
       <div>
         <p className="section-label">Active Alerts</p>
         <div className="alert-list">
-          {activeAlerts.map((alert) => (
+          {alerts.length === 0 && <p className="muted-text">No active alerts.</p>}
+          {alerts.slice(0, 5).map((alert) => (
             <div
               key={alert.id}
+              role="button"
+              tabIndex={0}
               className="alert-item"
-              onClick={() => onSelectAlert?.(alert)}
               style={{ cursor: 'pointer' }}
-              title="Click to view alert diagnostics and thresholds"
+              onClick={() => onSelectAlert?.(alert)}
+              title="Why this alert?"
             >
               <span className={`status-dot ${alert.level}`} />
               <div className="alert-copy">
@@ -138,7 +148,7 @@ export default function Dashboard({ showExitGuard, showHazardReport, showReadine
               </div>
               <div className="alert-meta">
                 <span className="alert-rule">{alert.rule}</span>
-                <p className="alert-time">{alert.time}</p>
+                <p className="alert-time">{alert.acknowledgedAt ? 'Acked' : alert.time}</p>
               </div>
             </div>
           ))}

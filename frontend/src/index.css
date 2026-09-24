@@ -1171,7 +1171,9 @@ p {
 .proximity-overlay {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  /* Same tier as .modal-backdrop (1000): a CRITICAL fullscreen safety alert must never sit
+     under the sim-control dev panel (z-index 50) or any other overlay. */
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1758,3 +1760,21 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+/* Backend integration additions */
+.status-dot.caution { background: #fbbf24; }
+.status-pill { font-size: 0.7rem; font-weight: 800; padding: 0.15rem 0.5rem; border-radius: 999px; background: #374151; color: #fff; }
+.status-pill.danger { background: #dc2626; }
+.status-pill.warning { background: #d97706; }
+.status-pill.info { background: #2563eb; }
+.header-button { background: transparent; border: 1px solid #4b5563; border-radius: 0.25rem; color: #9ca3af; font-size: 0.7rem; padding: 0.2rem 0.4rem; cursor: pointer; }
+.notice-bar { margin: 0.5rem 1rem 0; padding: 0.6rem 0.8rem; border-radius: 0.5rem; background: #1e3a8a; color: #dbeafe; font-size: 0.8rem; cursor: pointer; }
+.proximity-ack { width: 100%; margin-top: 1rem; padding: 0.85rem; border-radius: 0.5rem; background: #dc2626; color: #fff; border: none; font-weight: 800; font-size: 1rem; text-transform: uppercase; cursor: pointer; }
+.btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+.btn-small { padding: 0.45rem 0.8rem; border-radius: 0.5rem; border: 1px solid #d4d4d8; background: #f4f4f5; color: #18181b; font-weight: 700; font-size: 0.8rem; cursor: pointer; }
+.btn-small.primary { background: #111827; color: #fff; border-color: #111827; }
+.btn-small:disabled { opacity: 0.5; cursor: not-allowed; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0 20px; }
+.chip { padding: 0.4rem 0.7rem; border-radius: 999px; border: 1px solid #d4d4d8; background: #f4f4f5; color: #3f3f46; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.chip.selected { background: #111827; color: #fff; border-color: #111827; }
+.field-label { font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.75rem 20px 0.35rem; }
