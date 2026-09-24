@@ -1,6 +1,6 @@
 # `ml_runtime` package interface — v1
 
-Agreed by: P1 ☐
+Agreed by: P1 ☑
 
 P1 ships a pip-installable package `ml_runtime`. The backend only loads it and calls it (plan.md §5.6). Model files are loaded from `MODELS_DIR` through `model_registry` (sha256 verified).
 
@@ -24,7 +24,7 @@ class AnomalyModel:
 ```
 
 - Feature dict keys are exactly the ones in `ml_features.md`, with the units given there.
-- Library versions: the backend pins the **same** scikit-learn / lightgbm / joblib versions as P1's training env (D24). P1 fills this in: `scikit-learn==☐ lightgbm==☐ joblib==☐ python==3.11`.
+- Library versions: the backend pins the **same** scikit-learn / lightgbm / joblib versions as P1's training env (D24). P1 fills this in: `scikit-learn==1.5.2 lightgbm==4.5.0 joblib==1.4.2 python==3.11`.
 - `load()` must fail loudly on a corrupt or incompatible file. The backend then keeps the previous model.
 
 Backend fallbacks (always available, no P1 code needed):
