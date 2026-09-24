@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-09-24T04:48:34.175810+00:00",
+  "models": {
+    "anomaly_excavator_v1.joblib": {
+      "version": "anomaly-iforest-excavator-2026.09.24",
+      "sha256": "08ea4adf8059e37d46c658e41a06b05d7bb6ac35349f8af86db8e6e7c9b75b52",
+      "size_bytes": 1242314
+    },
+    "anomaly_wheel_loader_v1.joblib": {
+      "version": "anomaly-iforest-wheel_loader-2026.09.24",
+      "sha256": "567f81434ac2cd3d3b32bf5c0954a8c1fbb30a4dddd9601c437b721185544a21",
+      "size_bytes": 1303546
+    },
+    "eta_v1.joblib": {
+      "version": "eta-lgbm-2026.09.24",
+      "sha256": "63a7af887ccabb55625fbd5ea7cf2eb8695e70e6882b5da6799347e8b9ff9e06",
+      "size_bytes": 310768
+    }
+  }
+}
