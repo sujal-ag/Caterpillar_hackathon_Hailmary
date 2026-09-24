@@ -1,6 +1,6 @@
 # ML feature dictionaries — v1
 
-Agreed by: P1 ☑
+Agreed by: P1 ☐
 
 The backend builds these dicts from SQLite at inference time. P1 must build **identical** dicts for training (D15). Names and units are frozen. Changing one needs a new version of this file.
 
