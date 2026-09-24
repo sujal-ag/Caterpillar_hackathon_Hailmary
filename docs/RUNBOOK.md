@@ -29,6 +29,15 @@ If an older DB fails with `DB schema vN is older than vM`, delete it and let the
 - `/sim/*` needs admin; `/ws/site` needs supervisor.
 - `AUTH_DISABLED=true` makes every request admin. P3 development only. It is logged at WARNING on start and reported by `/system/status` (`auth_disabled: true`).
 
+## Shift, readiness, hazards (Phase 5)
+
+- Shifts: one per machine per site-local date, `SH-YYYYMMDD-{machine}-D`, window `SHIFT_START`/`SHIFT_END` (site-local HH:MM; END ≤ START = overnight). The seed plans today's EXC001 (OP1001, "Operator A") and EXC002 (OP1002 `EMP1002`/`5678`, "Operator B") shifts, insert-only, so a container restart never resets an ACTIVE shift. `/shift/start` creates the row when none exists for today (e.g. after midnight).
+- Tokens last `max(shift planned_end + 2 h, now + JWT_TTL_S)`.
+- Demo flow: login → `POST /readiness` → `POST /shift/start` (R20 fires here if RED) → work → `POST /incidents` with `create_hazard {"type":"WORKER_ZONE"}` → the pin is on the retained topic → drive EXC002 in: `ws_probe.py --machine EXC002 --badge SUP001 --pin 9999 --scenario drive_into_zone --speed 4 --expect nudge:R14` (only if a pin lies on the drive path).
+- Incident media: `MEDIA_DIR` (compose: `/data/media` in the `edge-data` volume). Upload to the cloud is Phase 9.
+- Schema v3 (Phase 5): an older DB is refused at start. Delete it and let the seed recreate it: `docker compose -f infra/docker-compose.yml run --rm --no-deps --entrypoint rm edge-api -f /data/edge.db /data/edge.db-wal /data/edge.db-shm`.
+- Retained hazards: `docker exec operator-companion-mosquitto-1 mosquitto_sub -t 'cat/SITE-PUN-01/hazards' -C 1 -v`.
+
 ## Scenarios
 
 - `GET /sim/scenarios`, `POST /sim/scenario {"name": "unsafe_exit"}` (admin token).

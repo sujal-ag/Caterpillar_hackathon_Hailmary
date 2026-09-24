@@ -114,10 +114,11 @@ def test_critical_rules_always_audible():
             assert r["state_effect"] == "UNSAFE", r["id"]
 
 
-def test_stretch_rules_disabled():
+def test_stretch_and_cut_rules_disabled():
+    # D21 stretch (R19, R22) + the 24 h scope cut (PROGRESS.md Phase 5).
+    disabled = {"R19", "R22"} | {"R08", "R09", "R15", "R23", "R24"}
     enabled = {r["id"]: r["enabled"] for r in RULES["rules"]}
-    assert enabled["R19"] is False and enabled["R22"] is False  # D21
-    assert all(v for k, v in enabled.items() if k not in ("R19", "R22"))
+    assert {k for k, v in enabled.items() if not v} == disabled
 
 
 def test_message_keys_and_audio_clips_exist():

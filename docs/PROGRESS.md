@@ -4,6 +4,61 @@ One entry per phase (plan.md §0 rule 3): what was built, gate results, deviatio
 
 ---
 
+## Phase 5 — Operator services: auth, shift, readiness, incidents, hazards + geofencing ✅ (24 h scope) (2026-09-24)
+
+### Scope cut (user decision, applies to the rest of the build)
+With 24 h left, the user cut: walkaround, guest mode (an unknown badge stays a 401), readiness override, the multi-edge test, rules **R08/R09/R15/R19/R22/R23/R24** (now `enabled: false` in `rules.yaml`), the anomaly job, scorecard, model hot-swap, fatigue samples, the CV worker (stretch), embeddings/sqlite-vec, the cloud LLM, sync pull streams, media upload, hazard LWW, the weather job, the edge-side fleet API and the load test. Expired or deleted pins are **removed** from the retained list; the tombstone stays in the DB only. Also skipped: `/idle/{id}/reason`, because it is the R09 chip and R09 is cut.
+
+### Built
+- **Auth** (`edge/api/auth.py`): a login with `machine_id` binds that machine's current shift (ACTIVE, else today's row). The JWT carries a `shift_id` claim. **`exp = max(planned_end + 2 h, now + JWT_TTL_S)`** (user request), so a token is never born expired, whether you log in late or past midnight. `exp` is checked against the runtime clock that issued it. `LoginResponse.shift` is filled.
+- **Shift** (`common/shifts.py`, `edge/api/shift.py`): `SH-YYYYMMDD-{machine}-D` per site-local date. The window comes from the new **`SHIFT_START`/`SHIFT_END`** settings (user request; END ≤ START = overnight). `/shift/start` creates today's row if none exists (this covers crossing midnight), marks it ACTIVE, records `engine_hours_start` (None when stale), links today's latest readiness check, and tells the engine the operator, shift and rating. It is idempotent for the same operator, and returns 409 if the shift is ACTIVE for someone else or already CLOSED today. `/shift/end` takes `handover_note`; `/shift/current` returns the shift and the last handover note left on the machine. Shift writes go through the outbox (P1).
+- **Seed**: new `data/seed/shifts_demo.yaml`. Today's PLANNED shifts are EXC001/OP1001 and **EXC002/OP1002 ("Operator B", user request)**. Shifts are insert-if-absent, so `EDGE_SEED_ON_START` never resets an ACTIVE shift on a container restart.
+- **Readiness** (`edge/readiness/score.py` pure + `edge/api/readiness.py`): HLD §7.4 exactly. All numbers are in the new `rules.yaml` `readiness:` block (hld_ref §7.4; the population default of 300 ms is tagged `assumption: true`). The personal baseline is the median of the last checks once there are ≥ 5. Reasons are i18n keys (`readiness.reason.*`, added to `en.json`). The check goes to the outbox (RED → P0). The rating reaches the engine at shift start, or immediately if the operator's shift is already ACTIVE, and **R20 fires on RED at shift start** (escalated → P0). No route reads the rating (I10).
+- **Hazards** (`edge/hazards.py`, `edge/api/hazards.py`): create, `PATCH {CONFIRM|RESOLVE}` and `DELETE` (tombstone, supervisor). Every change is one unit of work with version+1, `updated_at` and a P0 outbox row (`DELETE` op for tombstones), then the full ACTIVE list is republished **retained**. Validation uses the HLD §6.11 ranges from the new `rules.yaml` `hazards:` block (radius 5–50, default 10; `line_clearance_m` 4–15, required for OVERHEAD_LINE). `GET /hazards?bbox=` is supported. WORKER_ZONE and SOFT_GROUND expire after 24 h; CONFIRM restarts the clock; a job runs every `HAZARD_EXPIRY_CHECK_S`.
+- **Retained bus**: `Bus.publish(..., retain=False)`. `MemoryBus` delivers retained messages to later subscribers (broker semantics). `MqttBus` remembers the last retained payload per topic and republishes it on every (re)connect, before subscribing, so a change made while the broker was down still lands.
+- **Engines learn pins only from the retained topic** (`Runtime._consume_hazards` → `MachineEngine.set_hazards` + WS `hazards`), including within one process, per plan.md §2. Pins live in `ctx.hazard_pins`, which is snapshotted, so a crash-restart keeps them.
+- **Geofence** (`edge/geo/geofence.py`, shapely, pure): point zones use distance ≤ radius, polygons use `covers`. A zone is left only once the machine is more than R14 `exit_hysteresis_m` (2 m) outside. It runs in `on_raw` and in `set_hazards` (a pin dropped on the machine is entered at once; a removed pin is left at once, which clears R14). It is **paused while `sensor_health.position` isn't OK**: zones hold, R14 evaluates UNKNOWN and holds, and the state shows position UNKNOWN. It emits `GEOFENCE_ENTER`/`GEOFENCE_EXIT` events.
+- **Incidents** (`edge/api/incidents.py`): multipart with `incident` JSON, ≤ 1 `voice` and ≤ 3 `photos`. There is a content-type whitelist (415), a `MEDIA_MAX_BYTES` cap (413) and server-made names under `MEDIA_DIR/{incident_id}/`; files are removed if the DB write fails. The server fills ts, x/y (from a live fix only), `state_snapshot` (engine state + a last-60 s telemetry summary) and `linked_alert_ids` (the last 5 min). `create_hazard` puts the pin in the **same** unit of work (both P0) and republishes. With no position, the incident is still saved, with no pin and `hazard_error` saying why.
+- **Env one-taps** (`edge/api/env.py`): `/env/ground` and `/env/manual` publish `env.v1` (MANUAL) on the normal env path. `CurrentEnv` now resolves `ground_condition` on its own, so a ground tap doesn't freeze the SIM weather, and a MANUAL ground outranks SIM's.
+- **Config/infra**: `SHIFT_START`, `SHIFT_END`, `MEDIA_DIR`, `MEDIA_MAX_BYTES`, `HAZARD_EXPIRY_CHECK_S` in `Settings` and `.env.example`; compose `MEDIA_DIR=/data/media`. New deps: `shapely`, `python-multipart` (re-locked). `SCHEMA_VERSION` 3 (`shift.handover_note`, `readiness_check.reasons`). Contracts updated: `rest.md` (Phase 5 rows, cuts, the `DELETE /hazards/{id}` addition), `ws.md`, `topics.md` and `en.json`; OpenAPI + TS regenerated. RUNBOOK has a Phase 5 section.
+
+### Gate results
+| Gate | Result |
+|---|---|
+| Auth: right PIN → token; wrong PIN → 401; unknown badge → 401 (guest cut); operator token rejected on supervisor routes | ✅ `test_auth_roles_and_unknown_badge` (DELETE /hazards 403, `/ws/site` 4403). Login touches only SQLite + bcrypt (no network) |
+| Login at 21:00 and 00:30 (user request) | ✅ 21:00 with TTL 60 s → exp = now + 60 s (planned_end + 2 h already past), later calls work, `/shift/start` 200. 00:30 on a new date with an overnight window → no shift on login, token valid; `/shift/start` creates `SH-{new date}-EXC001-D` 19:00 → 07:00 ACTIVE, and a re-login binds it. 08:00 → exp = 20:00 (TTL wins over 19:00) |
+| Readiness table incl. D3 | ✅ `test_readiness.py` (15 cases, every bracket, highest-only, floor, bands). `5/14` → 85 GREEN; `5/11` → 70 YELLOW (also via the API, schema-validated) |
+| RED → R20 + P0; no endpoint refuses a RED operator | ✅ RED check → P0 outbox; `/shift/start` 200 → R20 WARNING escalated, P0 alert row, state readiness RED; `/shift/current` + `/hazards` 200; shift end clears R20 |
+| Incident: voice + 2 photos, snapshot, links, P0, `create_hazard` | ✅ files on disk, snapshot state + last_60s, the active alerts linked, P0 incident + P0 pin, pin on the retained list; 4 photos → 422, PDF → 415, bad severity → 422 with nothing left on disk; no position → saved, no pin, reason given |
+| Hazard retained: a new subscriber gets the full list with versions | ✅ MemoryBus (unit) + **real Mosquitto** (`test_hazards_retained_reach_a_late_subscriber`, including a list published before the bus connected) + live stack (`mosquitto_sub` on the running edge showed the pin) |
+| Multi-edge test | ✂️ cut (24 h). Its demo beat is covered on one instance: pin created on the API → EXC002 (Operator B) drives in → **R14 on EXC002 within 2 s** of the first frame inside the zone (`test_operator_b_drives_into_operator_a_zone`); live: `ws_probe --machine EXC002 --scenario drive_into_zone --expect nudge:R14` → ok at +8.5 s (speed 4) |
+| Geofence hysteresis: ±1 m at the edge → one ENTER | ✅ one ENTER, one EXIT only at 3 m outside (> 2 m) |
+| Power line R15 | ✂️ R15 cut (disabled). Predicate correctness stays pinned by `test_rules.py` (5.5 m → True, 4.5 m → False at clearance 8 m) |
+| Expiry: WORKER_ZONE after 24 h → expired, off the retained list, tombstoned | ✅ +25 h → tombstoned (deleted, v2), off the list, outbox UPSERT → DELETE; the OVERHEAD_LINE pin (no expiry) stays |
+| Position stale 11 s → geofence paused, visible in sensor_health | ✅ 12 s without x/y while driving out → no EXIT, R14 held (not cleared), `sensor_health.position = UNKNOWN`, class not PRODUCTIVE |
+| Full suite | ✅ **224 passed, 2 skipped** (broker restart opt-in; P1 traces absent); ruff check + format clean; `gen_ts.sh` → TS types OK, 20 files |
+
+### Bugs found and fixed
+1. **The DbWriter thread died when a caller stopped waiting (Phase 1 bug, found by the Phase 5 tests).** A cancelled caller (request aborted, lifespan shutdown) cancels its future. `set_result` then raised `InvalidStateError`, and so did the fallback `set_exception`, killing the writer thread: **every later write, including safety alerts and outbox rows, would silently stop.** Now the unit still commits and the result is dropped if nobody is waiting. Regression test `test_writer_survives_a_cancelled_caller` fails on the old code and passes on the new.
+2. `MqttBus` dropped retained publishes made while disconnected. It now republishes them on connect (see Built).
+
+### Decisions / deviations
+1. **R20 with no readiness check = False, not UNKNOWN.** Readiness is advisory, not a safety sensor (I10); an UNKNOWN would have held R20 active forever after shift end. `test_rules.py` has a dedicated case for it.
+2. Unknown heat (no env) → `heat_level NONE`, no penalty (advisory, I10).
+3. `/incidents` `operator_id` = the operator on shift on that machine (None if none); `reporter_id` = the token's subject. Paths are relative to `MEDIA_DIR`.
+4. `DELETE /hazards/{id}` (supervisor) added for the plan's "CRUD … tombstone on delete". RESOLVE is limited to the reporter or a supervisor.
+5. The DB has one day shift per machine per date. A CLOSED shift can't be restarted the same day (409); delete the DB to reset the demo.
+6. The token's `exp` is verified against the runtime clock, not the host clock (same clock that issued it; tests drive it).
+7. `/env/manual` MANUAL weather outranks SIM with no expiry (`ponytail:` note in `CurrentEnv`).
+8. The live container's dev DB (v2, seeded gate data only) was deleted so the v3 schema could start; the seed recreated it.
+
+### Open items
+- Teammate review: `readiness.reason.*` wording, the hazard validation ranges, `DELETE /hazards/{id}`, and the incident response shape (`{incident, hazard, hazard_error}`).
+- P3: `/shift/*`, `/readiness`, `/incidents`, `/hazards` and `/env/*` are in `openapi.json` / `contracts/ts`.
+- Not committed (the user asked not to commit without asking).
+
+---
+
 ## Phase 4 — Nudges, WebSocket bridge, core REST → CP1 ✅ except the tablet demo (2026-09-24)
 
 ### Built

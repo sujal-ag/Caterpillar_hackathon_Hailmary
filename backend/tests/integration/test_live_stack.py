@@ -157,3 +157,44 @@ def test_mqtt_bus_reconnects_and_resubscribes_after_broker_restart():
             await asyncio.gather(task, return_exceptions=True)
 
     asyncio.run(main())
+
+
+def test_hazards_retained_reach_a_late_subscriber():
+    """Phase 5 gate: a new subscriber immediately receives the full hazard list with
+    versions, and a list published while the bus was offline reaches the broker on connect."""
+
+    async def main():
+        topic = f"cat/IT-SITE-{time.time_ns()}/hazards"
+        payload = {
+            "schema": "hazards.v1",
+            "site_id": "IT",
+            "as_of": "2026-10-14T07:00:00.000+05:30",
+            "pins": [{"pin_id": "P1", "version": 3}],
+        }
+        bus = MqttBus(S.mqtt_host, S.mqtt_port, f"it-haz-{time.time_ns()}", 0.5)
+        await bus.publish(topic, payload, retain=True)  # not connected yet
+        task = asyncio.create_task(bus.run())
+        for _ in range(200):
+            if bus.connected:
+                break
+            await asyncio.sleep(0.02)
+        await asyncio.sleep(0.3)
+        got = []
+        late = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        late.on_message = lambda c, u, m: m.payload and got.append(json.loads(m.payload))
+        late.connect(S.mqtt_host, S.mqtt_port)
+        late.subscribe(topic)
+        late.loop_start()
+        for _ in range(100):
+            if got:
+                break
+            await asyncio.sleep(0.02)
+        late.publish(topic, b"", retain=True).wait_for_publish(5)  # clear the test's retained
+        late.loop_stop()
+        late.disconnect()
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        return got
+
+    got = asyncio.run(main())
+    assert got and got[0]["pins"] == [{"pin_id": "P1", "version": 3}]

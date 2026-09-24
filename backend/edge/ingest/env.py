@@ -89,18 +89,41 @@ def build_environment_obs(raw: dict) -> dict:
     }
 
 
+_WEATHER = ("temp_c", "rh_pct", "precip_mm_h", "rain_flag", "wind_kmh", "gust_kmh", "visibility_m")
+
+
 class CurrentEnv:
-    """In-memory `current_env[site]`, source-priority resolved (plan.md Phase 2 item 5)."""
+    """In-memory `current_env[site]`, source-priority resolved (plan.md Phase 2 item 5).
+
+    `ground_condition` is resolved on its own (Phase 5 one-tap `/env/ground`): a ground-only
+    obs updates just that field, so a MANUAL tap never freezes the weather at its rank, and
+    the resolved ground condition carries over to later weather obs that lack it."""
+
+    # ponytail: MANUAL outranks SIM forever (no expiry); add a max age if a stale manual
+    # entry ever shadows a live feed for too long.
 
     def __init__(self):
         self._by_site: dict[str, dict] = {}
         self._rank_by_site: dict[str, int] = {}
+        self._ground: dict[str, tuple[int, str]] = {}  # site -> (rank, ground_condition)
 
     def update(self, site_id: str, obs: dict) -> None:
         rank = _SOURCE_RANK.get(obs["source"], 0)
-        if site_id not in self._by_site or rank >= self._rank_by_site[site_id]:
+        ground = obs.get("ground_condition")
+        if ground is not None and rank >= self._ground.get(site_id, (-1, None))[0]:
+            self._ground[site_id] = (rank, ground)
+        weather = any(obs.get(k) is not None for k in _WEATHER)
+        if weather and (site_id not in self._by_site or rank >= self._rank_by_site[site_id]):
             self._by_site[site_id] = obs
             self._rank_by_site[site_id] = rank
+        elif site_id not in self._by_site:
+            self._by_site[site_id] = obs  # ground-only first obs: nothing better yet
+            self._rank_by_site[site_id] = -1  # any weather obs may replace it
+        if site_id in self._ground:
+            self._by_site[site_id] = {
+                **self._by_site[site_id],
+                "ground_condition": self._ground[site_id][1],
+            }
 
     def get(self, site_id: str) -> dict | None:
         return self._by_site.get(site_id)

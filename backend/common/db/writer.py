@@ -13,10 +13,11 @@ inactivity. It is not part of any transaction with other writes and never touche
 outbox (I8).
 """
 
+import contextlib
 import queue
 import threading
 from collections.abc import Callable
-from concurrent.futures import Future
+from concurrent.futures import Future, InvalidStateError
 from typing import Any
 
 from sqlalchemy.engine import Engine
@@ -92,9 +93,13 @@ class DbWriter:
                 with Session(self._engine) as session:
                     result = fn(session)
                     session.commit()
-                fut.set_result(result)
+                ok, value = True, result
             except BaseException as exc:  # noqa: BLE001 - must reach the caller, whatever it is
-                fut.set_exception(exc)
+                ok, value = False, exc
+            # A caller that stopped waiting (cancelled request, shutdown) cancels its future;
+            # setting it then raises, which used to kill this thread and every later write.
+            with contextlib.suppress(InvalidStateError):
+                fut.set_result(value) if ok else fut.set_exception(value)
 
     def _flush_telemetry(self, rows: list[dict]) -> None:
         if not rows:

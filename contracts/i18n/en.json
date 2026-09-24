@@ -28,5 +28,16 @@
   "nudge.heat.hydrate": "High heat — drink water and rest in the shade.",
   "nudge.coupler.not_verified": "Attachment lock not verified — do the ground-press test.",
   "nudge.anomaly.flagged": "Unusual machine pattern — flagged for supervisor review.",
-  "nudge.efficiency.fuel_tip": "Fuel use is above your normal — check power mode and idle RPM."
+  "nudge.efficiency.fuel_tip": "Fuel use is above your normal — check power mode and idle RPM.",
+  "readiness.reason.rt_slower_30": "Reaction time 30% or more slower than your usual.",
+  "readiness.reason.rt_slower_20": "Reaction time 20% or more slower than your usual.",
+  "readiness.reason.rt_slower_10": "Reaction time 10% or more slower than your usual.",
+  "readiness.reason.rt_lapses": "Some reactions were slower than half a second.",
+  "readiness.reason.sleep_low": "Under 5 hours of sleep in 24 hours, or under 12 hours in 48 hours.",
+  "readiness.reason.sleep_short": "Under 6 hours of sleep in the last 24 hours.",
+  "readiness.reason.feel_low": "You said you are not feeling well rested.",
+  "readiness.reason.heat_extreme_caution": "Heat: extreme caution.",
+  "readiness.reason.heat_danger": "Heat: danger.",
+  "readiness.reason.long_blinks": "Several long blinks during the check.",
+  "readiness.reason.no_personal_baseline": "No personal baseline yet — compared with a typical reaction time."
 }

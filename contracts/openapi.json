@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Operator Companion edge-api",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "paths": {
     "/health": {
@@ -93,6 +93,201 @@
             }
           }
         }
+      }
+    },
+    "/shift/start": {
+      "post": {
+        "tags": [
+          "shift"
+        ],
+        "summary": "Shift Start",
+        "operationId": "shift_start_shift_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/shift/end": {
+      "post": {
+        "tags": [
+          "shift"
+        ],
+        "summary": "Shift End",
+        "operationId": "shift_end_shift_end_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/shift/current": {
+      "get": {
+        "tags": [
+          "shift"
+        ],
+        "summary": "Shift Current",
+        "description": "The machine's shift now (ACTIVE, else today's row, else null) + the last handover note\nleft on this machine by a previous shift.",
+        "operationId": "shift_current_shift_current_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "machine",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "default: the token's machine",
+              "title": "Machine"
+            },
+            "description": "default: the token's machine"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readiness": {
+      "post": {
+        "tags": [
+          "readiness"
+        ],
+        "summary": "Submit",
+        "operationId": "submit_readiness_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadinessIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/state/current": {
@@ -242,6 +437,362 @@
         }
       }
     },
+    "/hazards": {
+      "get": {
+        "tags": [
+          "hazards"
+        ],
+        "summary": "List Hazards",
+        "operationId": "list_hazards_hazards_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "bbox",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "minx,miny,maxx,maxy in local metres",
+              "title": "Bbox"
+            },
+            "description": "minx,miny,maxx,maxy in local metres"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Hazards Hazards Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "hazards"
+        ],
+        "summary": "Create Hazard",
+        "operationId": "create_hazard_hazards_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HazardIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Create Hazard Hazards Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hazards/{pin_id}": {
+      "patch": {
+        "tags": [
+          "hazards"
+        ],
+        "summary": "Patch Hazard",
+        "operationId": "patch_hazard_hazards__pin_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pin Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Patch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Patch Hazard Hazards  Pin Id  Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "hazards"
+        ],
+        "summary": "Delete Hazard",
+        "operationId": "delete_hazard_hazards__pin_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pin Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Hazard Hazards  Pin Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/incidents": {
+      "post": {
+        "tags": [
+          "incidents"
+        ],
+        "summary": "Create Incident",
+        "operationId": "create_incident_incidents_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_incident_incidents_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Incident Incidents Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/env/ground": {
+      "post": {
+        "tags": [
+          "env"
+        ],
+        "summary": "Env Ground",
+        "description": "One-tap ground condition; WET makes `wet` true (R06 three-point prompt).",
+        "operationId": "env_ground_env_ground_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Ground"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Env Ground Env Ground Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/env/manual": {
+      "post": {
+        "tags": [
+          "env"
+        ],
+        "summary": "Env Manual",
+        "description": "Manual temperature/RH when no sensor or feed is available (heat index, dew point).",
+        "operationId": "env_manual_env_manual_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Manual"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Env Manual Env Manual Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/sim/scenarios": {
       "get": {
         "tags": [
@@ -344,6 +895,112 @@
   },
   "components": {
     "schemas": {
+      "Body_create_incident_incidents_post": {
+        "properties": {
+          "incident": {
+            "type": "string",
+            "title": "Incident",
+            "description": "JSON: type, category, severity_self, …"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice"
+          },
+          "photos": {
+            "items": {
+              "type": "string",
+              "contentMediaType": "application/octet-stream"
+            },
+            "type": "array",
+            "title": "Photos",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "incident"
+        ],
+        "title": "Body_create_incident_incidents_post"
+      },
+      "EndRequest": {
+        "properties": {
+          "machine_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine Id"
+          },
+          "handover_note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handover Note"
+          }
+        },
+        "type": "object",
+        "title": "EndRequest"
+      },
+      "Geometry": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "Point",
+              "Polygon"
+            ],
+            "title": "Type"
+          },
+          "coordinates": {
+            "items": {},
+            "type": "array",
+            "title": "Coordinates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "title": "Geometry",
+        "description": "GeoJSON-shaped Point or Polygon in local site metres."
+      },
+      "Ground": {
+        "properties": {
+          "ground_condition": {
+            "type": "string",
+            "enum": [
+              "DRY",
+              "WET",
+              "MUDDY"
+            ],
+            "title": "Ground Condition"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ground_condition"
+        ],
+        "title": "Ground"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -356,6 +1013,56 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HazardIn": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "WORKER_ZONE",
+              "OVERHEAD_LINE",
+              "SOFT_GROUND",
+              "BURIED_UTILITY",
+              "TRENCH",
+              "DROP_OFF",
+              "OTHER"
+            ],
+            "title": "Type"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/Geometry"
+          },
+          "radius_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radius M"
+          },
+          "line_clearance_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Clearance M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "geometry"
+        ],
+        "title": "HazardIn"
       },
       "LoginRequest": {
         "properties": {
@@ -505,6 +1212,28 @@
         ],
         "title": "MachineStatus"
       },
+      "Manual": {
+        "properties": {
+          "temp_c": {
+            "type": "number",
+            "maximum": 60.0,
+            "minimum": -40.0,
+            "title": "Temp C"
+          },
+          "rh_pct": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Rh Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "temp_c",
+          "rh_pct"
+        ],
+        "title": "Manual"
+      },
       "OperatorOut": {
         "properties": {
           "operator_id": {
@@ -527,6 +1256,252 @@
           "role"
         ],
         "title": "OperatorOut"
+      },
+      "Patch": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "CONFIRM",
+              "RESOLVE"
+            ],
+            "title": "Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "Patch"
+      },
+      "ReadinessIn": {
+        "properties": {
+          "machine_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine Id"
+          },
+          "sleep_last_24h_h": {
+            "type": "number",
+            "maximum": 24.0,
+            "minimum": 0.0,
+            "title": "Sleep Last 24H H"
+          },
+          "sleep_last_48h_h": {
+            "type": "number",
+            "maximum": 48.0,
+            "minimum": 0.0,
+            "title": "Sleep Last 48H H"
+          },
+          "feel_score": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Feel Score"
+          },
+          "rt_mean_ms": {
+            "type": "number",
+            "maximum": 5000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Rt Mean Ms"
+          },
+          "rt_sd_ms": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rt Sd Ms"
+          },
+          "rt_lapses": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Rt Lapses"
+          },
+          "camera_used": {
+            "type": "boolean",
+            "title": "Camera Used",
+            "default": false
+          },
+          "long_blinks_20s": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Long Blinks 20S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sleep_last_24h_h",
+          "sleep_last_48h_h",
+          "feel_score",
+          "rt_mean_ms",
+          "rt_lapses"
+        ],
+        "title": "ReadinessIn"
+      },
+      "ReadinessOut": {
+        "properties": {
+          "schema": {
+            "type": "string",
+            "title": "Schema",
+            "default": "readiness.v1"
+          },
+          "check_id": {
+            "type": "string",
+            "title": "Check Id"
+          },
+          "operator_id": {
+            "type": "string",
+            "title": "Operator Id"
+          },
+          "shift_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shift Id"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "sleep_last_24h_h": {
+            "type": "number",
+            "title": "Sleep Last 24H H"
+          },
+          "sleep_last_48h_h": {
+            "type": "number",
+            "title": "Sleep Last 48H H"
+          },
+          "feel_score": {
+            "type": "integer",
+            "title": "Feel Score"
+          },
+          "rt_mean_ms": {
+            "type": "number",
+            "title": "Rt Mean Ms"
+          },
+          "rt_sd_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rt Sd Ms"
+          },
+          "rt_lapses": {
+            "type": "integer",
+            "title": "Rt Lapses"
+          },
+          "rt_delta_vs_baseline_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rt Delta Vs Baseline Pct"
+          },
+          "baseline_source": {
+            "type": "string",
+            "title": "Baseline Source"
+          },
+          "camera_used": {
+            "type": "boolean",
+            "title": "Camera Used"
+          },
+          "long_blinks_20s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Long Blinks 20S"
+          },
+          "heat_level": {
+            "type": "string",
+            "title": "Heat Level"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "rating": {
+            "type": "string",
+            "title": "Rating"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "supervisor_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supervisor Override"
+          }
+        },
+        "type": "object",
+        "required": [
+          "check_id",
+          "operator_id",
+          "shift_id",
+          "ts",
+          "sleep_last_24h_h",
+          "sleep_last_48h_h",
+          "feel_score",
+          "rt_mean_ms",
+          "rt_sd_ms",
+          "rt_lapses",
+          "rt_delta_vs_baseline_pct",
+          "baseline_source",
+          "camera_used",
+          "long_blinks_20s",
+          "heat_level",
+          "score",
+          "rating",
+          "reasons"
+        ],
+        "title": "ReadinessOut",
+        "description": "readiness.v1"
       },
       "ScenarioList": {
         "properties": {
@@ -634,6 +1609,44 @@
         ],
         "title": "ScenarioStopped"
       },
+      "ShiftOut": {
+        "properties": {
+          "shift": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shift"
+          },
+          "previous_handover_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Handover Note"
+          },
+          "as_of": {
+            "type": "string",
+            "title": "As Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shift",
+          "previous_handover_note",
+          "as_of"
+        ],
+        "title": "ShiftOut"
+      },
       "Snapshot": {
         "properties": {
           "as_of": {
@@ -693,6 +1706,23 @@
           "eta"
         ],
         "title": "Snapshot"
+      },
+      "StartRequest": {
+        "properties": {
+          "machine_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine Id"
+          }
+        },
+        "type": "object",
+        "title": "StartRequest"
       },
       "SystemStatus": {
         "properties": {

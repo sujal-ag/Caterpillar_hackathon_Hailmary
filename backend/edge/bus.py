@@ -26,22 +26,31 @@ def topic_matches(pattern: str, topic: str) -> bool:
 
 
 class Bus(Protocol):
-    async def publish(self, topic: str, payload: dict) -> None: ...
+    async def publish(self, topic: str, payload: dict, retain: bool = False) -> None: ...
 
     def subscribe(self, pattern: str, queue: asyncio.Queue) -> None: ...
 
 
 class MemoryBus:
+    """Broker semantics tests rely on: a retained message is kept per topic and delivered to
+    every later matching subscriber on subscribe (hazards, plan.md §2)."""
+
     def __init__(self):
         self._subs: list[tuple[str, asyncio.Queue]] = []
+        self.retained: dict[str, dict] = {}
 
-    async def publish(self, topic: str, payload: dict) -> None:
+    async def publish(self, topic: str, payload: dict, retain: bool = False) -> None:
+        if retain:
+            self.retained[topic] = payload
         for pattern, queue in self._subs:
             if topic_matches(pattern, topic):
                 queue.put_nowait((topic, payload))
 
     def subscribe(self, pattern: str, queue: asyncio.Queue) -> None:
         self._subs.append((pattern, queue))
+        for topic, payload in self.retained.items():
+            if topic_matches(pattern, topic):
+                queue.put_nowait((topic, payload))
 
 
 class MqttBus:
@@ -56,17 +65,20 @@ class MqttBus:
         self.connected = False
         self.dropped_in = 0  # non-JSON payloads received
         self.dropped_out = 0  # publishes while disconnected
+        self._retained: dict[str, dict] = {}  # re-published on every (re)connect
 
     def subscribe(self, pattern: str, queue: asyncio.Queue) -> None:
         self._subs.append((pattern, queue))
 
-    async def publish(self, topic: str, payload: dict) -> None:
+    async def publish(self, topic: str, payload: dict, retain: bool = False) -> None:
+        if retain:  # the latest retained state must reach the broker even if we're offline now
+            self._retained[topic] = payload
         client = self._client
         if client is None:
             self.dropped_out += 1
             return
         try:
-            await client.publish(topic, json.dumps(payload, default=str), qos=0)
+            await client.publish(topic, json.dumps(payload, default=str), qos=0, retain=retain)
         except aiomqtt.MqttError:
             self.dropped_out += 1
 
@@ -76,6 +88,12 @@ class MqttBus:
                 async with aiomqtt.Client(
                     self.host, self.port, identifier=self.client_id or None
                 ) as client:
+                    # Retained state first, so our own subscription reads it back, not an
+                    # older copy the broker kept from before the disconnect.
+                    for topic, payload in list(self._retained.items()):
+                        await client.publish(
+                            topic, json.dumps(payload, default=str), qos=0, retain=True
+                        )
                     for pattern in dict.fromkeys(p for p, _ in self._subs):
                         await client.subscribe(pattern)
                     self._client, self.connected = client, True

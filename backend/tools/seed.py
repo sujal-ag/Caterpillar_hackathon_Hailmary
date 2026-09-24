@@ -32,6 +32,7 @@ from common.db.models import (
     TaskType,
 )
 from common.db.session import create_all, get_engine
+from common.shifts import planned_window, shift_id_for
 from common.timeutil import to_site_iso
 
 DATA_DIR = Settings().data_dir  # DATA_DIR env var (infra/.env.example)
@@ -85,25 +86,28 @@ def seed_diagnostic_codes(session: Session) -> None:
 
 
 def seed_shifts_and_demo_tasks(session: Session, site_tz: ZoneInfo) -> None:
-    """A PLANNED 07:00-17:00 shift per (machine, today) that a demo task references, plus
-    the tasks themselves (HLD §11 day-shift pattern)."""
+    """Today's PLANNED shifts from shifts_demo.yaml (window = SHIFT_START/SHIFT_END), plus
+    the demo tasks, which reference their machine's shift."""
+    settings = Settings()
     tasks_raw = _load(SEED_DIR, "tasks_demo.yaml")
     today = datetime.now(site_tz).date()
     midnight = datetime.combine(today, datetime.min.time(), tzinfo=site_tz)
+    start, end = planned_window(today, settings.shift_start, settings.shift_end, site_tz)
 
-    shifts: dict[str, tuple[str, str]] = {}
-    for row in tasks_raw:
-        shift_id = f"SH-{today:%Y%m%d}-{row['machine_id']}-D"
-        shifts[shift_id] = (row["machine_id"], row["operator_id"])
-    for shift_id, (machine_id, operator_id) in shifts.items():
-        session.merge(
+    # Insert-if-absent, not merge: EDGE_SEED_ON_START re-seeds on every container start and
+    # must not reset a shift that is already ACTIVE/CLOSED (delete the DB to reset the demo).
+    for row in _load(SEED_DIR, "shifts_demo.yaml"):
+        shift_id = shift_id_for(row["machine_id"], today)
+        if session.get(Shift, shift_id) is not None:
+            continue
+        session.add(
             Shift(
                 shift_id=shift_id,
-                operator_id=operator_id,
-                machine_id=machine_id,
+                operator_id=row["operator_id"],
+                machine_id=row["machine_id"],
                 site_id="SITE-PUN-01",
-                planned_start=to_site_iso(midnight.replace(hour=7)),
-                planned_end=to_site_iso(midnight.replace(hour=17)),
+                planned_start=to_site_iso(start),
+                planned_end=to_site_iso(end),
                 status="PLANNED",
             )
         )
@@ -116,7 +120,7 @@ def seed_shifts_and_demo_tasks(session: Session, site_tz: ZoneInfo) -> None:
             row.pop("scheduled_end_offset_min"),
         )
         row["task_id"] = f"TASK-DEMO-{row['machine_id']}-{suffix}"
-        row["shift_id"] = f"SH-{today:%Y%m%d}-{row['machine_id']}-D"
+        row["shift_id"] = shift_id_for(row["machine_id"], today)
         row["scheduled_start"] = to_site_iso(midnight + timedelta(minutes=start_off))
         row["scheduled_end"] = to_site_iso(midnight + timedelta(minutes=end_off))
         session.merge(Task(**row))

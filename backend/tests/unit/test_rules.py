@@ -165,11 +165,6 @@ CASES |= {
         _set(ctx_with(), fatigue={"perclos_pct": 5, "long_blinks_per_min": 0}),
         ctx_with(),  # no camera data
     ),
-    "R20": (
-        _set(ctx_with(), readiness="RED", shift_id="SH-1"),
-        _set(ctx_with(), readiness="GREEN"),
-        ctx_with(),
-    ),
     "R21": (
         _set(ctx_with(seat_occupied=False), env={**ENV_DRY, "wbgt_est_c": 30.0}),
         _set(ctx_with(seat_occupied=False), env={**ENV_DRY, "wbgt_est_c": 20.0}),
@@ -199,7 +194,7 @@ def test_rule_true_false_unknown(rule_id):
 
 
 def test_every_rule_has_a_case():
-    covered = set(CASES) | {"R06", "R16", "R17"}  # the three with dedicated tests below
+    covered = set(CASES) | {"R06", "R16", "R17", "R20"}  # dedicated tests below
     assert covered == {f"R{i:02d}" for i in range(1, 25)}
 
 
@@ -209,6 +204,14 @@ def test_r06_follows_exit_tracker_prompt():
     assert value("R06", ctx_with(), OPEN_EXIT) is True
     assert value("R06", ctx_with(), {**OPEN_EXIT, "three_point_prompted": False}) is False
     assert value("R06", ctx_with(), None) is False
+
+
+def test_r20_no_readiness_check_is_false_not_unknown():
+    # Phase 5 deviation: readiness is advisory (I10), not a safety sensor. No check = False,
+    # so R20 clears when the shift ends instead of being held by an UNKNOWN forever.
+    assert value("R20", _set(ctx_with(), readiness="RED", shift_id="SH-1")) is True
+    assert value("R20", _set(ctx_with(), readiness="GREEN")) is False
+    assert value("R20", ctx_with()) is False
 
 
 @pytest.mark.parametrize("rule_id,action_class", [("R16", "STOP"), ("R17", "MONITOR")])

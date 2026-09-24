@@ -69,6 +69,46 @@ policy:
     CRITICAL: tone_critical
   hld_ref: "§4.2, §4.3, §4.4, §4.12"
 
+# Shift-start readiness score (HLD §7.4; plan.md Phase 5 item 3). Start 100, floor 0.
+# Only the highest RT bracket applies; only the highest sleep penalty applies.
+readiness:
+  start: 100
+  rt_brackets:                  # [% slower than baseline (>=), penalty], highest first
+    - [30, 40]
+    - [20, 25]
+    - [10, 10]
+  lapse_ms_gt: 500              # a reaction slower than this is a lapse
+  lapse_penalty: 10             # per lapse
+  sleep_red:                    # < 5 h in 24 h OR < 12 h in 48 h -> -30
+    sleep_24h_lt: 5
+    sleep_48h_lt: 12
+    penalty: 30
+  sleep_short:                  # else < 6 h in 24 h -> -15
+    sleep_24h_lt: 6
+    penalty: 15
+  feel_le: 2
+  feel_penalty: 15
+  heat_penalty: {EXTREME_CAUTION: 5, DANGER: 10}
+  long_blinks_ge: 2
+  long_blinks_penalty: 15
+  green_ge: 75
+  yellow_ge: 50
+  baseline_min_checks: 5        # personal baseline after 5 shifts (§7.4 "Credibility")
+  population_default_rt_ms: 300 # plan.md Phase 5 item 3
+  assumption: true              # population default RT (plan.md), not a validated norm
+  hld_ref: "§7.4; D3"
+
+# Hazard pins (HLD §4.12, §6.11).
+hazards:
+  default_radius_m: 10
+  radius_m_min: 5
+  radius_m_max: 50
+  line_clearance_m_min: 4
+  line_clearance_m_max: 15
+  expiring_types: [WORKER_ZONE, SOFT_GROUND]
+  expiry_h: 24
+  hld_ref: "§4.12, §6.11"
+
 rules:
   - id: R01
     name: seatbelt_off_while_active
@@ -246,7 +286,7 @@ rules:
     once_per: null
     notify_supervisor: false
     lesson_trigger: true
-    enabled: true
+    enabled: false                       # cut (24h plan, Phase 5)
     hld_ref: "§4.4 R08"
 
   - id: R09
@@ -267,7 +307,7 @@ rules:
     once_per: EPISODE
     notify_supervisor: false
     lesson_trigger: false
-    enabled: true
+    enabled: false                       # cut (24h plan, Phase 5)
     hld_ref: "§4.4 R09; §6.10 idle buckets"
 
   - id: R10
@@ -400,7 +440,7 @@ rules:
     once_per: null
     notify_supervisor: false
     lesson_trigger: true
-    enabled: true
+    enabled: false                       # cut (24h plan, Phase 5)
     hld_ref: "§4.4 R15"
 
   - id: R16
@@ -576,7 +616,7 @@ rules:
     once_per: null
     notify_supervisor: false
     lesson_trigger: false
-    enabled: true
+    enabled: false                       # cut (24h plan, Phase 5)
     hld_ref: "§4.4 R23; §4.5"
 
   - id: R24
@@ -598,5 +638,5 @@ rules:
     once_per: null
     notify_supervisor: false
     lesson_trigger: false
-    enabled: true
+    enabled: false                       # cut (24h plan, Phase 5)
     hld_ref: "§4.4 R24; §6.10"

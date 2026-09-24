@@ -15,6 +15,7 @@ idna==3.20
 iniconfig==2.3.0
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
+numpy==2.4.6
 packaging==26.3
 paho-mqtt==2.1.0
 pluggy==1.6.0
@@ -27,10 +28,12 @@ Pygments==2.21.0
 PyJWT==2.15.0
 pytest==9.1.1
 python-dotenv==1.2.3
+python-multipart==0.0.32
 PyYAML==6.0.3
 referencing==0.37.0
 rpds-py==2026.6.3
 ruff==0.16.8
+shapely==2.1.2
 SQLAlchemy==2.0.54
 sqlmodel==0.0.46
 starlette==1.7.0

@@ -29,6 +29,7 @@ services:
       MQTT_PORT: "1883"
       SITE_TZ: ${SITE_TZ:-Asia/Kolkata}
       EDGE_DB_PATH: /data/edge.db
+      MEDIA_DIR: /data/media
       EDGE_JWT_SECRET: ${EDGE_JWT_SECRET:-}
       AUTH_DISABLED: ${AUTH_DISABLED:-false}     # never true outside P3 dev (logged loudly)
       EDGE_SEED_ON_START: ${EDGE_SEED_ON_START:-true}

@@ -55,6 +55,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/shift/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Shift Start */
+        post: operations["shift_start_shift_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shift/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Shift End */
+        post: operations["shift_end_shift_end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shift/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Shift Current
+         * @description The machine's shift now (ACTIVE, else today's row, else null) + the last handover note
+         *     left on this machine by a previous shift.
+         */
+        get: operations["shift_current_shift_current_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit */
+        post: operations["submit_readiness_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/state/current": {
         parameters: {
             query?: never;
@@ -106,6 +178,99 @@ export interface paths {
         get: operations["why_alerts__alert_id__why_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hazards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Hazards */
+        get: operations["list_hazards_hazards_get"];
+        put?: never;
+        /** Create Hazard */
+        post: operations["create_hazard_hazards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hazards/{pin_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Hazard */
+        delete: operations["delete_hazard_hazards__pin_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Hazard */
+        patch: operations["patch_hazard_hazards__pin_id__patch"];
+        trace?: never;
+    };
+    "/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Incident */
+        post: operations["create_incident_incidents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/env/ground": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Env Ground
+         * @description One-tap ground condition; WET makes `wet` true (R06 three-point prompt).
+         */
+        post: operations["env_ground_env_ground_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/env/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Env Manual
+         * @description Manual temperature/RH when no sensor or feed is available (heat index, dew point).
+         */
+        post: operations["env_manual_env_manual_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -172,10 +337,66 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_create_incident_incidents_post */
+        Body_create_incident_incidents_post: {
+            /**
+             * Incident
+             * @description JSON: type, category, severity_self, …
+             */
+            incident: string;
+            /** Voice */
+            voice?: string | null;
+            /**
+             * Photos
+             * @default []
+             */
+            photos: string[];
+        };
+        /** EndRequest */
+        EndRequest: {
+            /** Machine Id */
+            machine_id?: string | null;
+            /** Handover Note */
+            handover_note?: string | null;
+        };
+        /**
+         * Geometry
+         * @description GeoJSON-shaped Point or Polygon in local site metres.
+         */
+        Geometry: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "Point" | "Polygon";
+            /** Coordinates */
+            coordinates: unknown[];
+        };
+        /** Ground */
+        Ground: {
+            /**
+             * Ground Condition
+             * @enum {string}
+             */
+            ground_condition: "DRY" | "WET" | "MUDDY";
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HazardIn */
+        HazardIn: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "WORKER_ZONE" | "OVERHEAD_LINE" | "SOFT_GROUND" | "BURIED_UTILITY" | "TRENCH" | "DROP_OFF" | "OTHER";
+            geometry: components["schemas"]["Geometry"];
+            /** Radius M */
+            radius_m?: number | null;
+            /** Line Clearance M */
+            line_clearance_m?: number | null;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -221,6 +442,13 @@ export interface components {
             /** Last Restart S */
             last_restart_s: number | null;
         };
+        /** Manual */
+        Manual: {
+            /** Temp C */
+            temp_c: number;
+            /** Rh Pct */
+            rh_pct: number;
+        };
         /** OperatorOut */
         OperatorOut: {
             /** Operator Id */
@@ -229,6 +457,87 @@ export interface components {
             name: string;
             /** Role */
             role: string;
+        };
+        /** Patch */
+        Patch: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "CONFIRM" | "RESOLVE";
+        };
+        /** ReadinessIn */
+        ReadinessIn: {
+            /** Machine Id */
+            machine_id?: string | null;
+            /** Sleep Last 24H H */
+            sleep_last_24h_h: number;
+            /** Sleep Last 48H H */
+            sleep_last_48h_h: number;
+            /** Feel Score */
+            feel_score: number;
+            /** Rt Mean Ms */
+            rt_mean_ms: number;
+            /** Rt Sd Ms */
+            rt_sd_ms?: number | null;
+            /** Rt Lapses */
+            rt_lapses: number;
+            /**
+             * Camera Used
+             * @default false
+             */
+            camera_used: boolean;
+            /** Long Blinks 20S */
+            long_blinks_20s?: number | null;
+        };
+        /**
+         * ReadinessOut
+         * @description readiness.v1
+         */
+        ReadinessOut: {
+            /**
+             * Schema
+             * @default readiness.v1
+             */
+            schema: string;
+            /** Check Id */
+            check_id: string;
+            /** Operator Id */
+            operator_id: string;
+            /** Shift Id */
+            shift_id: string | null;
+            /** Ts */
+            ts: string;
+            /** Sleep Last 24H H */
+            sleep_last_24h_h: number;
+            /** Sleep Last 48H H */
+            sleep_last_48h_h: number;
+            /** Feel Score */
+            feel_score: number;
+            /** Rt Mean Ms */
+            rt_mean_ms: number;
+            /** Rt Sd Ms */
+            rt_sd_ms: number | null;
+            /** Rt Lapses */
+            rt_lapses: number;
+            /** Rt Delta Vs Baseline Pct */
+            rt_delta_vs_baseline_pct: number | null;
+            /** Baseline Source */
+            baseline_source: string;
+            /** Camera Used */
+            camera_used: boolean;
+            /** Long Blinks 20S */
+            long_blinks_20s: number | null;
+            /** Heat Level */
+            heat_level: string;
+            /** Score */
+            score: number;
+            /** Rating */
+            rating: string;
+            /** Reasons */
+            reasons: string[];
+            /** Supervisor Override */
+            supervisor_override?: string | null;
         };
         /** ScenarioList */
         ScenarioList: {
@@ -266,6 +575,17 @@ export interface components {
             /** Stopped */
             stopped: string | null;
         };
+        /** ShiftOut */
+        ShiftOut: {
+            /** Shift */
+            shift: {
+                [key: string]: unknown;
+            } | null;
+            /** Previous Handover Note */
+            previous_handover_note: string | null;
+            /** As Of */
+            as_of: string;
+        };
         /** Snapshot */
         Snapshot: {
             /** As Of */
@@ -290,6 +610,11 @@ export interface components {
             eta: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** StartRequest */
+        StartRequest: {
+            /** Machine Id */
+            machine_id?: string | null;
         };
         /** SystemStatus */
         SystemStatus: {
@@ -454,6 +779,137 @@ export interface operations {
             };
         };
     };
+    shift_start_shift_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    shift_end_shift_end_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    shift_current_shift_current_get: {
+        parameters: {
+            query?: {
+                /** @description default: the token's machine */
+                machine?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_readiness_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadinessIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadinessOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     state_current_state_current_get: {
         parameters: {
             query: {
@@ -537,6 +993,250 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Why"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_hazards_hazards_get: {
+        parameters: {
+            query?: {
+                /** @description minx,miny,maxx,maxy in local metres */
+                bbox?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_hazard_hazards_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HazardIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_hazard_hazards__pin_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_hazard_hazards__pin_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Patch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_incident_incidents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_create_incident_incidents_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    env_ground_env_ground_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Ground"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    env_manual_env_manual_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Manual"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

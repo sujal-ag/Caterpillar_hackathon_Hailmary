@@ -25,7 +25,7 @@ SITE_TYPES = {"state", "alert"}
 
 async def _authorise(ws: WebSocket, token: str | None):
     try:
-        return principal_from_token(ws.app.state.rt.settings, token)
+        return principal_from_token(ws.app.state.rt, token)
     except HTTPException:
         await ws.close(code=4401)
         return None

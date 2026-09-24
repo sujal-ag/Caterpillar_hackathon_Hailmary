@@ -17,7 +17,7 @@ Every payload is JSON with a `schema` field and a `ts` in ISO-8601 **with offset
 | `cat/{site}/{machine}/state` | engine → all | on change, ≤ 1 Hz | `state.v1` |
 | `cat/{site}/{machine}/alert` | engine → all | on change | `alert.v1` |
 | `cat/{site}/{machine}/nudge` | engine → all | on event | `nudge.v1` |
-| `cat/{site}/hazards` **retained** | edge ↔ devices | on change | `hazards.v1` (full list with versions) |
+| `cat/{site}/hazards` **retained** | edge ↔ devices | on change | `hazards.v1` (full ACTIVE list with versions; resolved/expired/deleted pins drop out, the DB keeps the tombstone) |
 | `cat/{site}/{machine}/sync/status` | sync → UI | 10 s + on change | `sync_status.v1` |
 
 Rules:

@@ -1,7 +1,7 @@
 """Load `contracts/rules.yaml` and the per-model thresholds it points at (plan.md Phase 3
 item 3). Thresholds are never hard-coded in the engine: they come from here."""
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 import yaml
@@ -50,6 +50,8 @@ class RuleSet:
     exit_checks: dict
     policy: dict
     version: int = 0
+    readiness: dict = field(default_factory=dict)  # HLD §7.4 score table
+    hazards: dict = field(default_factory=dict)  # HLD §4.12 pin limits + expiry
 
     def by_id(self, rule_id: str) -> Rule:
         return next(r for r in self.rules if r.id == rule_id)
@@ -59,7 +61,13 @@ def load_rules(path: Path = RULES_PATH) -> RuleSet:
     doc = yaml.safe_load(path.read_text())
     rules = tuple(Rule(**{k: v for k, v in r.items() if k in _RULE_FIELDS}) for r in doc["rules"])
     return RuleSet(
-        rules, doc["predicates"], doc["exit_checks"], doc["policy"], doc.get("version", 0)
+        rules,
+        doc["predicates"],
+        doc["exit_checks"],
+        doc["policy"],
+        doc.get("version", 0),
+        doc.get("readiness", {}),
+        doc.get("hazards", {}),
     )
 
 

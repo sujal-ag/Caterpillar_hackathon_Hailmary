@@ -20,6 +20,7 @@ from common.db.session import create_all, make_engine, sqlite_url
 from common.db.writer import DbWriter
 from common.log import jlog
 from common.timeutil import MonotonicClock, parse_iso
+from edge import hazards
 from edge.broadcast import Broadcaster
 from edge.bus import Bus, MqttBus
 from edge.engine.machine import MachineEngine
@@ -45,6 +46,7 @@ class Runtime:
         self.runners: dict[str, EngineRunner] = {}
         self.tasks: list[asyncio.Task] = []
         self.env_queue: asyncio.Queue = asyncio.Queue()
+        self.hazard_queue: asyncio.Queue = asyncio.Queue()
 
     # --- lifecycle ------------------------------------------------------------------------
 
@@ -91,6 +93,7 @@ class Runtime:
                 sink=self.sink,
             )
         self.bus.subscribe(f"cat/{site_id}/env", self.env_queue)
+        self.bus.subscribe(hazards.topic(site_id), self.hazard_queue)
         self.replayer = Replayer(self.bus, site_id, s)
 
         if hasattr(self.bus, "run"):
@@ -99,6 +102,9 @@ class Runtime:
             self.tasks.append(asyncio.create_task(runner.run(), name=f"engine-{mid}"))
         self.tasks.append(asyncio.create_task(self._record_env(), name="env-recorder"))
         self.tasks.append(asyncio.create_task(self._sync_status_loop(), name="sync-status"))
+        self.tasks.append(asyncio.create_task(self._consume_hazards(), name="hazards-in"))
+        self.tasks.append(asyncio.create_task(self._expire_hazards(), name="hazards-expiry"))
+        await hazards.publish(self)  # the retained topic always reflects this edge's DB
         jlog(
             log,
             logging.INFO,
@@ -177,6 +183,39 @@ class Runtime:
                 jlog(log, logging.WARNING, "env_dropped", error=repr(exc))
                 continue
             self.writer.submit(lambda session, o=obs: session.add(EnvironmentObs(**o)))
+
+    async def _consume_hazards(self) -> None:
+        """Retained `cat/{site}/hazards` -> every engine's zone set + WS `hazards`. The only
+        way an engine learns pins, so pins from another edge on the broker work the same."""
+        while True:
+            _, payload = await self.hazard_queue.get()
+            pins = payload.get("pins")
+            if not isinstance(pins, list):
+                jlog(log, logging.WARNING, "hazards_dropped", reason="no pins list")
+                continue
+            for mid, runner in self.runners.items():
+                try:
+                    await runner.call(lambda e, now, p=pins: e.set_hazards(p, now))
+                except Exception as exc:  # noqa: BLE001 - one bad list must not stop the consumer
+                    jlog(
+                        log, logging.ERROR, "hazards_apply_failed", machine_id=mid, error=repr(exc)
+                    )
+                await self.sink.publish(mid, "hazards", payload)
+
+    async def _expire_hazards(self) -> None:
+        while True:
+            await asyncio.sleep(self.settings.hazard_expiry_check_s)
+            try:
+                expired = await hazards.expire(self)
+            except Exception as exc:  # noqa: BLE001 - keep the job alive; log and retry
+                jlog(log, logging.ERROR, "hazards_expiry_failed", error=repr(exc))
+                continue
+            if expired:
+                jlog(log, logging.INFO, "hazards_expired", pin_ids=expired)
+
+    async def write(self, fn):
+        """Run a unit of work on the single DbWriter and await its result (or exception)."""
+        return await asyncio.wrap_future(self.writer.submit(fn))
 
     def sync_counts(self) -> dict[int, int]:
         with Session(self.db) as session:

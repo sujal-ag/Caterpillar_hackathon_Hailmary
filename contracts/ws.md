@@ -18,7 +18,7 @@ Every message uses the envelope `ws_envelope.v1`: `{ "type": "...", "ts": "...",
 | `alert` | `alert.v1` (`{action: RAISED\|UPDATED\|CLEARED\|ACKED, alert}`) | On change |
 | `nudge` | `nudge.v1` | On event |
 | `event` | `event.v1` | On event |
-| `hazards` | `hazards.v1` | On change |
+| `hazards` | `hazards.v1` (ACTIVE pins only) | Every time the retained `cat/{site}/hazards` list changes, after the engines applied it. Resolved/expired/deleted pins are simply absent |
 | `sync` | `sync_status.v1` | 10 s + on change |
 | `lesson` | `{assignment_id, deliverable: bool}` | When deliverability changes |
 | `eta` | `{task_id, prediction: EtaPrediction}` | When an ETA changes |

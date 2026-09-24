@@ -154,6 +154,7 @@ class Shift(SQLModel, table=True):
     engine_hours_start: float | None = None
     engine_hours_end: float | None = None
     status: str = "PLANNED"  # PLANNED | ACTIVE | CLOSED
+    handover_note: str | None = None  # HLD §10 shift handover (plan.md §5.7 /shift/end)
 
 
 class TaskType(SQLModel, table=True):
@@ -546,6 +547,7 @@ class ReadinessCheck(SQLModel, table=True):
     heat_level: str = "NONE"
     score: int
     rating: str  # GREEN | YELLOW | RED
+    reasons: list | None = _json_col()  # i18n keys (readiness.v1 `reasons`)
     supervisor_override: str | None = None
 
 
@@ -730,7 +732,8 @@ class SimLabelLog(SQLModel, table=True):
 # Bump when a table changes shape: create_all never alters an existing table, so an older
 # DB must be deleted and re-seeded (session.create_all refuses to run on one).
 # v2 (Phase 4): operator.role.
-SCHEMA_VERSION = 2
+# v3 (Phase 5): shift.handover_note, readiness_check.reasons.
+SCHEMA_VERSION = 3
 
 
 class SchemaVersion(SQLModel, table=True):

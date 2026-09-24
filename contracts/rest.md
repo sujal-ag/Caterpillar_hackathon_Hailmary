@@ -18,26 +18,27 @@ Conventions:
 | GET | `/health` | Liveness `{status, service, ts}` | — | 0 ✅ |
 | GET | `/system/status` | Sync, models (local/cloud, versions), sensor health, disabled rules, alerts/h | any | 4 |
 | POST | `/system/network` | `{force_offline: bool}` demo kill switch (D16) | admin | 9 |
-| POST | `/auth/login` | `{badge_id, pin}` → `{token, operator, shift}`. badge_id = employee_code (D6). Unknown badge → guest, `verified=false` | — | 4 (min) / 5 |
-| POST | `/shift/start` | Start a shift → `SH-YYYYMMDD-{machine}-D` | operator | 5 |
-| POST | `/shift/end` | `{handover_note?}` | operator | 5 |
-| GET | `/shift/current` | Current shift + previous handover note | operator | 5 |
-| POST | `/readiness` | Submit a check → `readiness.v1` (`score`, `rating`, `reasons[]`). Never blocks (I10) | operator | 5 |
-| POST | `/readiness/{id}/override` | Supervisor PIN override | supervisor | 5 |
-| POST | `/walkaround` | Checklist `{items:[{item, status, photo?}]}` | operator | 5 |
+| POST | `/auth/login` | `{badge_id, pin, machine_id?}` → `{token, expires_at, operator, shift}`. badge_id = employee_code (D6). With `machine_id`: `shift` = the machine's ACTIVE shift, else today's row, else null; JWT `shift_id` claim; `exp = max(planned_end + 2 h, now + JWT_TTL_S)`. Unknown badge → 401 (guest mode cut, 24 h plan) | — | 5 ✅ |
+| POST | `/shift/start` | `{machine_id?}` → `{shift, previous_handover_note, as_of}`. Activates today's `SH-YYYYMMDD-{machine}-D` (created if absent; window SHIFT_START/SHIFT_END). 409 if ACTIVE for someone else or already CLOSED today. Never refused for readiness (I10) | operator | 5 ✅ |
+| POST | `/shift/end` | `{machine_id?, handover_note?}` (shift's operator or supervisor) | operator | 5 ✅ |
+| GET | `/shift/current?machine=` | `{shift, previous_handover_note, as_of}` | operator | 5 ✅ |
+| POST | `/readiness` | Submit a check → `readiness.v1` (`score`, `rating`, `reasons[]` = i18n keys `readiness.reason.*`). Never blocks (I10) | operator | 5 ✅ |
+| POST | `/readiness/{id}/override` | Supervisor PIN override — **cut (24 h plan)** | supervisor | — |
+| POST | `/walkaround` | Checklist — **cut (24 h plan)** | operator | — |
 | GET | `/tasks?shift_id=` | Today's tasks with predictions (`task.v1[]`) | operator | 6 |
 | POST | `/tasks/{id}/status` | `{status, delay_reason?}` | operator | 6 |
 | GET | `/tasks/{id}/eta` | `EtaPrediction` | operator | 6 |
 | GET | `/state/current` | Same content as the WS `snapshot` | operator | 4 |
 | POST | `/alerts/{id}/ack` | Acknowledge (≠ clear) | operator | 4 |
 | GET | `/alerts/{id}/why` | Rule id, inputs, thresholds | operator | 4 |
-| POST | `/incidents` | Multipart: JSON (`incident.v1` subset, optional `create_hazard {type, radius_m}`) + voice + ≤ 3 photos | operator | 5 |
-| GET | `/hazards?bbox=` | `hazards.v1` | any | 5 |
-| POST | `/hazards` | Create a pin | operator | 5 |
-| PATCH | `/hazards/{id}` | `{action: CONFIRM\|RESOLVE}` | operator / supervisor | 5 |
-| POST | `/env/ground` | `{ground_condition: DRY\|WET\|MUDDY}` | operator | 5 |
-| POST | `/env/manual` | `{temp_c, rh_pct}` | operator | 5 |
-| POST | `/idle/{episode_id}/reason` | `{reason_tag}` (R09 chip) | operator | 5 |
+| POST | `/incidents` | Multipart: `incident` (JSON: type, category, severity_self, transcript?, machine_id?, `create_hazard {type, radius_m?}`?) + `voice` (≤ 1 audio) + `photos` (≤ 3 images) → `{incident: incident.v1, hazard, hazard_error}`. 415 bad type, 413 too big. Media paths are relative to MEDIA_DIR | operator | 5 ✅ |
+| GET | `/hazards?bbox=minx,miny,maxx,maxy` | `hazards.v1` (ACTIVE pins) | any | 5 ✅ |
+| POST | `/hazards` | Create a pin `{type, geometry, radius_m?, line_clearance_m?}` → pin (201) | operator | 5 ✅ |
+| PATCH | `/hazards/{id}` | `{action: CONFIRM\|RESOLVE}`. CONFIRM any operator (extends expiry); RESOLVE the reporter or a supervisor | operator / supervisor | 5 ✅ |
+| DELETE | `/hazards/{id}` | Tombstone (DB keeps it; dropped from the retained list). Edge addition, Phase 5 | supervisor | 5 ✅ |
+| POST | `/env/ground` | `{ground_condition: DRY\|WET\|MUDDY}` → published `env.v1` (MANUAL) | operator | 5 ✅ |
+| POST | `/env/manual` | `{temp_c, rh_pct}` → published `env.v1` (MANUAL) | operator | 5 ✅ |
+| POST | `/idle/{episode_id}/reason` | `{reason_tag}` (R09 chip) — skipped: R09 is cut (24 h plan) | operator | — |
 | GET | `/diagnostics/active` | Active DTC cards: what happened / why it matters / what to do + `action_class` (no LLM) | operator | 8 |
 | POST | `/assistant/ask` | `{question, context_code?}` → `{answer, citations[], action_class, model: local\|cloud\|template, latency_ms}` | operator | 8 |
 | GET | `/lessons/assigned` | Assignments + `deliverable` | operator | 6 |

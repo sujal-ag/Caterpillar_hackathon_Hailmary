@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from common.config import Settings
 from common.log import install_redaction
-from edge.api import auth, sim, state, system
+from edge.api import auth, env, hazards, incidents, readiness, shift, sim, state, system
 from edge.bus import Bus
 from edge.runtime import Runtime
 from edge.ws import live
@@ -39,7 +39,7 @@ def create_app(
         finally:
             await rt.stop()
 
-    app = FastAPI(title="Operator Companion edge-api", version="0.4.0", lifespan=lifespan)
+    app = FastAPI(title="Operator Companion edge-api", version="0.5.0", lifespan=lifespan)
     if settings.cors_origin_list:
         app.add_middleware(
             CORSMiddleware,
@@ -47,7 +47,8 @@ def create_app(
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    for module in (system, auth, state, sim, live):
+    routers = (system, auth, shift, readiness, state, hazards, incidents, env, sim, live)
+    for module in routers:
         app.include_router(module.router)
     return app
 

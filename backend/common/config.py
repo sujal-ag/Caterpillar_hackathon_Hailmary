@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     jwt_ttl_s: int = 12 * 3600
     auth_disabled: bool = False
 
+    # shifts (site-local HH:MM; HLD §6.6 "07:00–17:00 typical"). END <= START = overnight.
+    shift_start: str = "07:00"
+    shift_end: str = "17:00"
+
+    # incidents + hazards (plan.md Phase 5)
+    media_dir: str = "data/media"  # incident voice notes/photos (D7 uploads them in Phase 9)
+    media_max_bytes: int = 10 * 1024 * 1024  # per file
+    hazard_expiry_check_s: float = 60.0
+
     # simulator control (contracts/sim_control.md)
     sim_mode: str = "proxy"  # proxy | replay
     sim_control_url: str = ""
@@ -56,6 +65,14 @@ class Settings(BaseSettings):
     def _sim_mode(cls, v: str) -> str:
         if v not in ("proxy", "replay"):
             raise ValueError("SIM_MODE must be 'proxy' or 'replay'")
+        return v
+
+    @field_validator("shift_start", "shift_end")
+    @classmethod
+    def _hhmm(cls, v: str) -> str:
+        h, _, m = v.partition(":")
+        if not (h.isdigit() and m.isdigit() and int(h) < 24 and int(m) < 60):
+            raise ValueError("SHIFT_START/SHIFT_END must be HH:MM (site-local)")
         return v
 
     @staticmethod

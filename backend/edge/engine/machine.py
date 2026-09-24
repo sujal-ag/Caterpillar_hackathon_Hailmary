@@ -6,7 +6,8 @@
     evaluate = predicates -> exit checks -> ExitTracker -> rules -> AlertManager -> class
 
 Evaluation runs on every raw frame, proximity message, env change, DTC change and 1 s
-tick (item 8). Zone changes (Phase 5) call `evaluate` the same way. Every entry point
+tick (item 8). Zone changes, hazard-list updates and shift/readiness changes (Phase 5) call
+`evaluate` the same way. Every entry point
 returns an `Out` with what to persist and publish; `supervisor.py` does the I/O, so this
 class stays deterministic and unit-testable with a fake clock.
 """
@@ -17,6 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from common.db.models import MachineEvent
+from common.ids import uuid7
 from common.levels import RANK
 from common.log import jlog
 from common.timeutil import to_site_iso
@@ -27,6 +29,7 @@ from edge.engine.context import MachineContext
 from edge.engine.exits import ExitTracker
 from edge.engine.registry import Inputs, compute_inputs, evaluate_rule
 from edge.engine.rules import RuleSet
+from edge.geo import geofence
 from edge.ingest.dtc import DtcTracker, lookup_action_class
 from edge.ingest.env import CurrentEnv, build_environment_obs
 from edge.ingest.events import Seq, event_type_for_switch, make_event
@@ -145,6 +148,7 @@ class MachineEngine:
 
         r22 = self.rules_by_id["R22"].params
         ctx.apply_telemetry(t, now, derive, r22["ground_press_hold_s"])
+        self._geofence(now, out)
 
         etype, episode = self.idle.update(
             running=t["engine_state"] == "RUNNING",
@@ -216,6 +220,70 @@ class MachineEngine:
             self._event(out, "DATA_STALE", "ingest", to_site_iso(now), {})
         self.evaluate(now, out)
         return out
+
+    # --- operator services (Phase 5; REST calls these through EngineRunner.call) -----------
+
+    def set_shift(
+        self, operator_id: str | None, shift_id: str | None, readiness: str | None, now: datetime
+    ) -> Out:
+        """Shift start/end: tags every later telemetry row/event/alert; R20 sees the rating."""
+        ctx = self.ctx
+        ctx.operator_id, ctx.shift_id, ctx.readiness = operator_id, shift_id, readiness
+        out = Out()
+        self.evaluate(now, out)
+        return out
+
+    def set_readiness(self, readiness: str | None, now: datetime) -> Out:
+        self.ctx.readiness = readiness
+        out = Out()
+        self.evaluate(now, out)
+        return out
+
+    def set_hazards(self, pins: list[dict], now: datetime) -> Out:
+        """New retained hazard list. A zone whose pin is gone (resolved/expired/deleted) is
+        left at once; a pin dropped on top of the machine is entered at once."""
+        ctx, out = self.ctx, Out()
+        ctx.hazard_pins = {
+            p["pin_id"]: p for p in pins if p["status"] == "ACTIVE" and not p["deleted"]
+        }
+        for pin_id in [z for z in ctx.zones_inside if z not in ctx.hazard_pins]:
+            zone = ctx.zones_inside.pop(pin_id)
+            self._event(
+                out,
+                "GEOFENCE_EXIT",
+                "risk-engine",
+                to_site_iso(now),
+                {"pin_id": pin_id, "type": zone["type"], "reason": "PIN_REMOVED"},
+            )
+        self._geofence(now, out)
+        self.evaluate(now, out)
+        return out
+
+    def _geofence(self, now: datetime, out: Out) -> None:
+        """Zone entry/exit (HLD §4.12). Paused while position is not OK: zones hold, R14
+        evaluates UNKNOWN and `sensor_health.position` shows it (never silent)."""
+        ctx = self.ctx
+        if not ctx.hazard_pins and not ctx.zones_inside:
+            return
+        if ctx.sensor_health(now, self.policy)["position"] != "OK":
+            return
+        x, y = ctx.sig("x_m"), ctx.sig("y_m")
+        hyst = self.rules_by_id["R14"].params["exit_hysteresis_m"]
+        entered, exited = geofence.update(ctx.zones_inside, ctx.hazard_pins, x, y, hyst)
+        ts = to_site_iso(now)
+        for pin_id in exited:
+            zone = ctx.zones_inside.pop(pin_id)
+            payload = {"pin_id": pin_id, "type": zone["type"], "x_m": x, "y_m": y}
+            self._event(out, "GEOFENCE_EXIT", "risk-engine", ts, payload)
+        for pin_id in entered:
+            pin = ctx.hazard_pins[pin_id]
+            ctx.zones_inside[pin_id] = {
+                "type": pin["type"],
+                "line_clearance_m": pin.get("line_clearance_m"),
+                "entry_id": uuid7(),
+            }
+            payload = {"pin_id": pin_id, "type": pin["type"], "x_m": x, "y_m": y}
+            self._event(out, "GEOFENCE_ENTER", "risk-engine", ts, payload)
 
     # --- evaluation -----------------------------------------------------------------------
 

@@ -273,3 +273,22 @@ def test_load_history_stub_is_a_clean_noop_when_files_absent(capsys):
     assert load_history.missing_files()  # data/history/ isn't populated yet
     load_history.main()
     assert "Nothing to load yet" in capsys.readouterr().err
+
+
+def test_writer_survives_a_cancelled_caller(tmp_path):
+    """A caller that stops waiting cancels its future; the writer thread must keep running
+    (found in Phase 5: a cancelled wait killed the thread and every later write)."""
+    import threading
+
+    eng = make_engine(sqlite_url(str(tmp_path / "w.db")))
+    create_all(eng)
+    w = DbWriter(eng)
+    w.start()
+    gate = threading.Event()
+    blocker = w.submit(lambda s: gate.wait(5))
+    cancelled = w.submit(lambda s: "ignored")
+    assert cancelled.cancel()  # still queued behind the blocker
+    gate.set()
+    blocker.result(5)
+    assert w.submit(lambda s: "still alive").result(5) == "still alive"
+    w.stop()

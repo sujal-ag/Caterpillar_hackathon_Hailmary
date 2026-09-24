@@ -379,8 +379,10 @@ def r19_fatigue(inp: Inputs, rule: Rule):
 
 
 def r20_readiness_red(inp: Inputs, rule: Rule):
+    # No readiness check = nothing to flag (False, not UNKNOWN): readiness is advisory, not a
+    # safety sensor (I10), and an UNKNOWN would hold R20 active after the shift ends.
     r = inp.ctx.readiness
-    return _one(eq(r, "RED"), key=inp.ctx.shift_id or "", inputs={"readiness": r})
+    return _one(r == "RED", key=inp.ctx.shift_id or "", inputs={"readiness": r})
 
 
 def r21_heat(inp: Inputs, rule: Rule):

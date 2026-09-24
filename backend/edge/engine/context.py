@@ -47,6 +47,7 @@ class MachineContext:
     operator_id: str | None = None
     shift_id: str | None = None
     task_type: str | None = None  # (Phase 6)
+    hazard_pins: dict = field(default_factory=dict)  # pin_id -> ACTIVE hazards.v1 pin (retained)
     zones_inside: dict = field(
         default_factory=dict
     )  # pin_id -> {type, line_clearance_m, entry_id} (Phase 5)
